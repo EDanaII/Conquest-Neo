@@ -3,8 +3,8 @@ using Conquest.Core.Models;
 
 namespace Conquest.CLI;
 
-static class MapRenderer {
-    public static void Render(IGameIO io, GameState state) {
+public sealed class MapRenderer : IMapRenderer {
+    public void Render(IGameIO io, GameState state) {
         var w = state.Config.Width;
         var h = state.Config.Height;
 

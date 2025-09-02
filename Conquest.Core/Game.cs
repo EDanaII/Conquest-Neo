@@ -4,9 +4,13 @@ public class Game {
     private readonly IGameIO _io;
     private readonly IRng _rng;
     private readonly GameState _state;
+    private readonly IMapRenderer _mapRenderer;
 
-    public Game(IGameIO io, IRng rng, GameState state) {
-        _io = io; _rng = rng; _state = state;
+    public Game(IGameIO io, IRng rng, GameState state, IMapRenderer mapRenderer) {
+        _io = io;
+        _rng = rng;
+        _state = state;
+        _mapRenderer = mapRenderer;
     }
 
     public int Run( ) {
@@ -48,13 +52,12 @@ public class Game {
                     break;
 
                 case "explore":
-                    // mark all stars as explored by player (so the map shows letters, not '?')
                     foreach (var star in _state.Stars.Skip(1)) star.ExploredBy[1] = true;
                     _io.WriteLine("Explored by player.");
                     break;
 
                 case "map":
-                    Conquest.CLI.MapRenderer.Render(_io, _state);
+                    _mapRenderer.Render(_io, _state);
                     break;
 
                 case "liststars":

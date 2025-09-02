@@ -1,0 +1,6 @@
+* Star summary not display manual list.
+* Star Report vanishes when enemy attacks.
+* Shift battle info down.
+* Enemy attacks does not display star report.
+* No pause between exploring a star and investment.
+

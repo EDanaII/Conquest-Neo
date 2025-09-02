@@ -1,4 +1,5 @@
-﻿namespace Conquest.Core.Stars;
+﻿using Conquest.Core.Random;
+namespace Conquest.Core.Stars;
 
 public sealed class StarGenerator {
     // literal knobs from the C code — adjust to your actual values

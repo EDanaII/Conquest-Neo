@@ -1,17 +1,23 @@
 ﻿using Conquest.Core;
+using Conquest.Core.Random;
 
 namespace Conquest.CLI;
+
 class Program {
     static int Main(string[] args) {
         var io = new ConsoleIO( );
-//        var rng = new SystemRng( );
-        var rng = new CRandRng( );
-
+        var rng = new CRandRng( ); // parity RNG in Core.Random
 
         var config = GameConfig.FromArgs(args);
-        if (config.Seed is int s) rng.Reseed(s);
+        // Accept int OR uint, depending on how GameConfig.Seed is defined
+        if (config.Seed is int si) {
+            rng.Reseed(si);                // IRng path (optional)
+            rng.Seed(unchecked((uint)si)); // C-parity path (used by StarGenerator)
+        }
 
         var state = new GameState(config);
-        return new Game(io, rng, state).Run( );
+        var renderer = new MapRenderer( ); // CLI implementation of IMapRenderer
+
+        return new Game(io, rng, state, renderer).Run( );
     }
 }

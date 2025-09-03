@@ -1,4 +1,4 @@
-﻿namespace Conquest.Core.Models;
+﻿namespace Conquest.Core.Model;
 
 public class TaskForce : BoardPoint {
     public string Name { get; set; } = ""; // used in your Sector.ToString()

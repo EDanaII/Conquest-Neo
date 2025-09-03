@@ -1,4 +1,5 @@
 ﻿using Conquest.Core;
+using Conquest.Core.Model;
 using Conquest.Core.Random;
 
 namespace Conquest.Tests.TestHelpers;
@@ -23,7 +24,7 @@ public sealed class TestGame {
         var config = cfg ?? GameConfig.Default; // adjust if your config provides a Default
         var io = new DummyIO(scriptedInput ?? Array.Empty<string>( ));
         var rng = new CRandRng( );
-        if (seed is int s) rng.Reseed(s);
+        if (seed is int s) rng.Seed(s);
 
         var state = new GameState(config);
         var renderer = new SpyRenderer( );

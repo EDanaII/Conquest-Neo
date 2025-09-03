@@ -1,5 +1,5 @@
 ﻿// Conquest.Core/Models/Player.cs
-namespace Conquest.Core.Models;
+namespace Conquest.Core.Model;
 
 public class Player {
     // 1..26 task forces (slot 0 unused for convenience)

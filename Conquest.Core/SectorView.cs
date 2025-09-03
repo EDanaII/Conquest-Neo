@@ -1,5 +1,5 @@
 ﻿// Conquest.Core/View/SectorView.cs  (adapter for UI/debug)
-using Conquest.Core.Models;
+using Conquest.Core.Model;
 
 namespace Conquest.Core.View;
 

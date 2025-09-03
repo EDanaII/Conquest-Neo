@@ -1,4 +1,4 @@
-﻿namespace Conquest.Core.Models;
+﻿namespace Conquest.Core.Model;
 
 public class Star : BoardPoint {
     public string Name { get; set; } = ".";

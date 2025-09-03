@@ -1,5 +1,5 @@
 ﻿using Conquest.Core;
-using Conquest.Core.Models;
+using Conquest.Core.Model;
 
 namespace Conquest.CLI;
 

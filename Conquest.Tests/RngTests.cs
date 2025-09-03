@@ -1,4 +1,5 @@
-﻿using Conquest.Core.Random;
+﻿using Conquest.Core;
+using Conquest.Core.Random;
 using Xunit;
 
 namespace Conquest.Tests;
@@ -6,7 +7,7 @@ namespace Conquest.Tests;
 public sealed class RngTests {
     [Fact]
     public void Next_Respects_Bounds( ) {
-        var r = new CRandRng( ); r.Reseed(123);
+        var r = new CRandRng( ); r.Seed(123);
         for (int i = 0; i < 10_000; i++) {
             var v = r.Next(5, 17);
             Assert.InRange(v, 5, 16);

@@ -1,31 +1,56 @@
-﻿namespace Conquest.Core.Random;
+﻿// File: Conquest.Core/Random/CRandRng.cs
+using System;
 
-public sealed class CRandRng : IRng, ICRandRng {
-    private uint _seed = 1;
+// Alias the interface so we don't fight namespaces
+using ICRandRng = Conquest.Core.Random.ICRandRng;
 
-    public CRandRng( ) { }
-    public CRandRng(int seed) => Reseed(seed);
+namespace Conquest.Core {
+    /// <summary>
+    /// Simple deterministic RNG (LCG). Implements both your app's IRng/ISeedableRng
+    /// and the StarGenerator's Conquest.Core.Random.ICRandRng.
+    /// </summary>
+    public sealed class CRandRng : ISeedableRng, ICRandRng {
+        private uint _state;
 
-    // ICRandRng
-    public void Seed(uint seed) => _seed = seed == 0 ? 1u : seed;
-    public int NextInt(int maxExclusive) {
-        if (maxExclusive <= 1) return 0;
-        return NextRaw( ) % maxExclusive; // exact C rand()%max behavior
-    }
+        public CRandRng( ) : this(1) { }
+        public CRandRng(int seed) { Seed(seed); }
 
-    // IRng
-    public int Next(int minInclusive, int maxExclusive) {
-        if (maxExclusive <= minInclusive) return minInclusive;
-        var r = NextRaw( ); // 0..32767
-        long range = (long)maxExclusive - minInclusive;
-        long scaled = (long)r * range / 32768L;
-        return (int)(minInclusive + scaled);
-    }
+        // ---- ISeedableRng / your code path ----
+        public void Seed(int seed) {
+            unchecked {
+                _state = (uint)seed;
+                if (_state == 0) _state = 1u; // avoid zero state
+            }
+        }
 
-    public void Reseed(int seed) => Seed(unchecked((uint)seed));
+        // Bridge your IRng reseed (if IRng has it)
+        void IRng.Reseed(int seed) => Seed(seed);
 
-    private int NextRaw( ) {
-        _seed = unchecked(_seed * 214013u + 2531011u);
-        return (int)((_seed >> 16) & 0x7FFFu);
+        // Your app's IRng.Next(min,max)
+        public int Next(int minInclusive, int maxExclusive) {
+            if (maxExclusive <= minInclusive)
+                throw new ArgumentOutOfRangeException(nameof(maxExclusive), "maxExclusive must be > minInclusive");
+
+            // LCG step: X = (aX + c) mod 2^32
+            _state = unchecked(1103515245u * _state + 12345u);
+
+            // Non-negative 31-bit value
+            int value31 = (int)(_state >> 1);
+            int range = maxExclusive - minInclusive;
+            return minInclusive + (value31 % range);
+        }
+
+        // ---- StarGenerator's interface (explicit impls) ----
+        // ICRandRng.Seed(uint)
+        void ICRandRng.Seed(uint seed) {
+            _state = seed == 0 ? 1u : seed;
+        }
+
+        // ICRandRng.NextInt(int maxExclusive) -> [0, maxExclusive)
+        int ICRandRng.NextInt(int maxExclusive) {
+            if (maxExclusive <= 0)
+                throw new ArgumentOutOfRangeException(nameof(maxExclusive), "maxExclusive must be > 0");
+            return Next(0, maxExclusive);
+        }
     }
 }

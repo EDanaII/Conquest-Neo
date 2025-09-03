@@ -1,4 +1,5 @@
-﻿using Conquest.Core.Random;
+﻿using Conquest.Core;
+using Conquest.Core.Random;
 using Conquest.Core.Stars;
 using Xunit;
 

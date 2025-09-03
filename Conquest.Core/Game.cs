@@ -1,101 +1,158 @@
-﻿namespace Conquest.Core;
+﻿// File: Conquest.Core/Game.cs
+// Canonical Game class with 4-arg ctor and a tiny command loop.
+// Works with IMapRenderer (external renderer) and calls GenerateStars(...) from the partial.
 
-public class Game {
-    private readonly IGameIO _io;
-    private readonly IRng _rng;
-    private readonly GameState _state;
-    private readonly IMapRenderer _mapRenderer;
+using System;
+using Conquest.Core.Model;
 
-    public Game(IGameIO io, IRng rng, GameState state, IMapRenderer mapRenderer) {
-        _io = io;
-        _rng = rng;
-        _state = state;
-        _mapRenderer = mapRenderer;
-    }
+namespace Conquest.Core {
+    public partial class Game {
+        private readonly IGameIO _io;
+        private readonly IRng _rng;
+        private readonly IMapRenderer _renderer;
 
-    public int Run( ) {
-        _io.WriteLine("CONQUEST (C# port)");
-        _io.WriteLine($"Board: {_state.Config.Width}x{_state.Config.Height}  Stars: {_state.Config.NumStars}  Turns: {_state.Config.MaxTurns}");
-        _io.WriteLine("Type 'help' for commands, 'quit' to exit.");
+        public Game(IGameIO io, IRng rng, GameState state, IMapRenderer renderer) {
+            _io = io ?? throw new ArgumentNullException(nameof(io));
+            _rng = rng ?? throw new ArgumentNullException(nameof(rng));
+            State = state ?? throw new ArgumentNullException(nameof(state));
+            _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
+        }
 
-        while (true) {
-            _io.Write("> ");
-            var line = (_io.ReadLine( ) ?? "").Trim( );
-            var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length == 0) continue;
+        public GameState State { get; }
 
-            var cmd = parts[0].ToLowerInvariant( );
-            if (cmd is "quit" or "q") break;
+        /// <summary>
+        /// Minimal command loop for tests:
+        /// seed N | genstars | map | reveal [on|off] | quit
+        /// </summary>
+        // File: Conquest.Core/Game.cs  (inside public partial class Game)
+        public int Run( ) {
+            while (true) {
+                var line = _io.ReadLine( );
+                if (line is null) break;
 
-            switch (cmd) {
-                case "help":
-                    _io.WriteLine("Commands: help, roll, config, seed <n>, genstars, map, explore");
-                    break;
+                var parts = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length == 0) continue;
 
-                case "config":
-                    var c = _state.Config;
-                    _io.WriteLine($"Victory={c.VictoryMultiplier}, Overwhelm={c.OverwhelmFactor}, Capacity={c.Capacity}");
-                    break;
+                var cmd = parts[0].ToLowerInvariant( );
 
-                case "roll":
-                    _io.WriteLine($"RNG: {_rng.Next(0, 100)}");
-                    break;
+                switch (cmd) {
+                    case "quit":
+                        return 0;
 
-                case "seed":
-                    if (parts.Length >= 2 && int.TryParse(parts[1], out var s)) { _rng.Reseed(s); _io.WriteLine($"Seeded: {s}"); }
-                    else _io.WriteLine("Usage: seed <int>");
-                    break;
+                    case "seed":
+                        if (parts.Length >= 2 && int.TryParse(parts[1], out var seed))
+                            (_rng as ISeedableRng)?.Seed(seed);
+                        continue;
 
-                case "genstars":
-                    _state.PlaceStars(_rng);
-                    _io.WriteLine("Stars placed.");
-                    break;
+                    case "genstars":
+                        GenerateStars(_rng, State);
+                        continue;
 
-                case "explore":
-                    foreach (var star in _state.Stars.Skip(1)) star.ExploredBy[1] = true;
-                    _io.WriteLine("Explored by player.");
-                    break;
+                    case "map":
+                        _renderer.Render(_io, State);
+                        continue;
 
-                case "map":
-                    _mapRenderer.Render(_io, _state);
-                    break;
+                    // Fog: on/off/toggle
+                    case "fog":
+                        if (parts.Length == 1) State.FogEnabled = !State.FogEnabled;
+                        else if (parts[1].Equals("on", StringComparison.OrdinalIgnoreCase)) State.FogEnabled = true;
+                        else if (parts[1].Equals("off", StringComparison.OrdinalIgnoreCase)) State.FogEnabled = false;
+                        _io.WriteLine($"Fog: {(State.FogEnabled ? "ON" : "OFF")}");
+                        continue;
 
-                case "liststars":
-                    foreach (var star in _state.Stars.Skip(1))
-                        _io.WriteLine($"{star.Name} ({star.X},{star.Y}) {(star.ExploredBy[1] ? "[seen]" : "")}");
-                    break;
+                    // Reveal debug overlay: on/off/toggle
+                    case "reveal":
+                        if (parts.Length == 1) State.RevealStars = !State.RevealStars;
+                        else State.RevealStars = parts[1].Equals("on", StringComparison.OrdinalIgnoreCase);
+                        _io.WriteLine($"Reveal mode: {(State.RevealStars ? "ON" : "OFF")}");
+                        continue;
 
-                case "reveal":
-                    if (parts.Length >= 2) {
-                        var target = parts[1].ToUpperInvariant( );
-                        var star = _state.Stars.Skip(1).FirstOrDefault(st => st.Name.Equals(target, StringComparison.OrdinalIgnoreCase));
-                        if (star is null) _io.WriteLine($"No such star: {target}");
-                        else { star.ExploredBy[1] = true; _io.WriteLine($"Revealed {star.Name}"); }
-                    }
-                    else _io.WriteLine("Usage: reveal <starName>");
-                    break;
+                    // Mark entire map visible (keeps fog flag true; this just fills the Visible grid).
+                    case "revealall":
+                        State.RevealAll( );
+                        _io.WriteLine("All cells marked visible.");
+                        continue;
 
-                case "fog":
-                    if (parts.Length >= 2 && (parts[1].Equals("on", StringComparison.OrdinalIgnoreCase) || parts[1].Equals("off", StringComparison.OrdinalIgnoreCase))) {
-                        _state.FogEnabled = parts[1].Equals("on", StringComparison.OrdinalIgnoreCase);
-                        _io.WriteLine($"Fog {(_state.FogEnabled ? "ON" : "OFF")}");
-                    }
-                    else _io.WriteLine("Usage: fog on|off");
-                    break;
+                    /* TODO: ? Clear visibility grid to all-false.
+                    case "hideall":
+                        State.HideAll( );
+                        _io.WriteLine("All cells hidden.");
+                        continue;
+                    */
 
-                case "nameat":
-                    if (parts.Length >= 3 && int.TryParse(parts[1], out var nx) && int.TryParse(parts[2], out var ny)) {
-                        var star = _state.StarAt(nx, ny);
-                        _io.WriteLine(star is null ? "(empty)" : star.Name);
-                    }
-                    else _io.WriteLine("Usage: nameat <x> <y>");
-                    break;
+                    // Discover x y [r]  (handy for testing fog without gameplay)
+                    case "discover":
+                        if (parts.Length >= 3
+                            && int.TryParse(parts[1], out var dx)
+                            && int.TryParse(parts[2], out var dy)) {
+                            var r = (parts.Length >= 4 && int.TryParse(parts[3], out var rr)) ? rr : 0;
+                            State.DiscoverRadius(dx, dy, r);
+                            _io.WriteLine($"Discovered {(r > 0 ? $"radius {r} at" : "cell")} ({dx},{dy}).");
+                        }
+                        else _io.WriteLine("usage: discover x y [radius]");
+                        continue;
 
-                default:
-                    _io.WriteLine($"Unknown command: {cmd}");
-                    break;
+                    // List star positions (debug)
+                    case "stars":
+                        for (int i = 0; i < State.Stars.Count; i++)
+                            _io.WriteLine($"{i,2}: ({State.Stars[i].X},{State.Stars[i].Y})");
+                        continue;
+
+                    // Quick help
+                    case "help":
+                        _io.WriteLine("Commands: seed N | genstars | map | fog [on|off] | reveal [on|off] | revealall | hideall | discover x y [r] | stars | quit");
+                        continue;
+
+                    default:
+                        _io.WriteLine("Unknown command. Try 'help'.");
+                        continue;
+                }
+            }
+
+            return 0;
+        }
+
+        private void GenerateStars(IRng rng, Conquest.Core.Model.GameState state) {
+            var cfg = state.Config;
+
+            if (cfg.Width <= 0 || cfg.Height <= 0)
+                throw new InvalidOperationException("Board dimensions must be positive.");
+
+            var capacity = (long)cfg.Width * cfg.Height;
+            if (cfg.NumStars < 0 || cfg.NumStars > capacity)
+                throw new InvalidOperationException("NumStars must be between 0 and Width*Height.");
+
+            // Ensure Stars list has exactly NumStars elements.
+            if (state.Stars.Count != cfg.NumStars) {
+                state.Stars.Clear( );
+                for (int i = 0; i < cfg.NumStars; i++)
+                    state.Stars.Add(new Star( ));
+            }
+
+            // Clear board star refs / marks.
+            for (int y = 0; y < cfg.Height; y++)
+                for (int x = 0; x < cfg.Width; x++) {
+                    var cell = state.Board[x, y];
+                    cell.StarRef = null;
+                    cell.Star = -1; // legacy index marker
+                }
+
+            var used = new HashSet<(int x, int y)>( );
+
+            for (int i = 0; i < cfg.NumStars; i++) {
+                int x, y;
+                do {
+                    x = rng.Next(0, cfg.Width);   // 0..Width-1
+                    y = rng.Next(0, cfg.Height);  // 0..Height-1
+                } while (!used.Add((x, y)));
+
+                var s = state.Stars[i];
+                s.X = x; s.Y = y;
+
+                var cell = state.Board[x, y];
+                cell.StarRef = s;
+                cell.Star = i; // keep legacy/indexy field in sync
             }
         }
-        return 0;
     }
 }

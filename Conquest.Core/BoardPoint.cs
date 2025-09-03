@@ -1,4 +1,4 @@
-﻿namespace Conquest.Core.Models;
+﻿namespace Conquest.Core.Model;
 
 public abstract class BoardPoint {
     public int X { get; set; }

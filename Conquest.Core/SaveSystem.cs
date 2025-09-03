@@ -1,5 +1,5 @@
 ﻿// src/Conquest.Core/Persistence/SaveSystem.cs
-using Conquest.Core.Models;
+using Conquest.Core.Model;
 using System.Text.Json;
 
 namespace Conquest.Core.Persistence;

@@ -1,5 +1,5 @@
 ﻿// Conquest.Core/Models/Sector.cs
-namespace Conquest.Core.Models;
+namespace Conquest.Core.Model;
 
 public class Sector {
     public Sector( ) {

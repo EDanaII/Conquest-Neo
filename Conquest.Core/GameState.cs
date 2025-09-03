@@ -1,8 +1,6 @@
-﻿using Conquest.Core.Models;
+﻿namespace Conquest.Core.Model;
 
-namespace Conquest.Core;
-
-public class GameState {
+public partial class GameState {
     public GameConfig Config { get; }
 
     // All engine data is 0-based internally.

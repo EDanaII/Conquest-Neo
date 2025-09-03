@@ -1,4 +1,5 @@
 ﻿using Conquest.Core;
+using Conquest.Core.Model;
 using Conquest.Core.Random;
 
 namespace Conquest.CLI;
@@ -11,8 +12,7 @@ class Program {
         var config = GameConfig.FromArgs(args);
         // Accept int OR uint, depending on how GameConfig.Seed is defined
         if (config.Seed is int si) {
-            rng.Reseed(si);                // IRng path (optional)
-            rng.Seed(unchecked((uint)si)); // C-parity path (used by StarGenerator)
+            rng.Seed(si); // C-parity path (used by StarGenerator)
         }
 
         var state = new GameState(config);

@@ -15,7 +15,7 @@ public sealed class GenStarsHandler : ICommandHandler {
         int space = args.GetInt("--space", 3);
 
         var rng = new CRandRng( );
-        rng.Seed(unchecked((uint)seed));   // C-parity seeding
+        rng.Seed(seed);               
 
         var gen = new StarGenerator(w, h, space);
         var stars = gen.Generate(count, rng);

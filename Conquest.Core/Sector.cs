@@ -7,10 +7,10 @@ public class Sector {
         TaskForces = new TaskForce[2];   // per-team view (may contain nulls)
     }
 
-    // === Legacy/index-based fields (match old C-style logic) ===
+    // === Legacy/index-based fields (now 0-based with -1 = none) ===
     public int Status { get; set; }
-    public int Star { get; set; }   // index into GameState.Stars (0 = none)
-    public int Tf { get; set; }   // index into GameState.Players[team].Tf (0 = none)
+    public int Star { get; set; } = -1;  // index into GameState.Stars (-1 = none, 0..Count-1 valid)
+    public int Tf { get; set; } = -1;    // index into GameState.Players[team].Tf (-1 = none)
 
     // === Rich/object-based fields for your newer code ===
     public Star? StarRef { get; set; }            // object reference to the star in this sector
@@ -20,9 +20,9 @@ public class Sector {
 
     public override string ToString( ) {
         var star = StarRef;
-        var mark = star == null ? " " : (star.ExploredBy[ViewingTeam] ? " " : "?");
+        var exploredMark = star == null ? " " : (star.ExploredBy[ViewingTeam] ? " " : "?");
         var starName = star?.Name ?? ".";
         var tfName = TaskForces[ViewingTeam]?.Name ?? " ";
-        return $"{mark}{starName}{tfName}";
+        return $"{exploredMark}{starName}{tfName}";
     }
 }

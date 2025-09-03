@@ -123,7 +123,7 @@ public class StarGenTests {
     public void Args_GetInt_Works(string[] args, string key, int def, int expected) {
         Assert.Equal(expected, args.GetInt(key, def));
     }
-
+    
     [Fact]
     public void Cli_Smoke_Sequence_Completes( ) {
         var io = new DummyIO(new[] { "seed 1", "genstars", "map", "quit" });
@@ -134,7 +134,7 @@ public class StarGenTests {
 
         var rc = game.Run( );
         Assert.Equal(0, rc);
-        Assert.Equal(state.Config.NumStars, state.Stars.Count - 1 /* if index 0 reserved */);
+        Assert.Equal(state.Config.NumStars, state.Stars.Count /* if index 0 reserved */);
     }
 
     public static TestGame WithProgress( ) {

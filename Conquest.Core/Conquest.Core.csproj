@@ -6,10 +6,4 @@
 		<TreatWarningsAsErrors>true</TreatWarningsAsErrors>
 		<LangVersion>latest</LangVersion>
 	</PropertyGroup>
-	<ItemGroup>
-	  <Compile Remove="Game.StarGeneration.cs" />
-	</ItemGroup>
-	<ItemGroup>
-	  <None Include="Game.StarGeneration.cs" />
-	</ItemGroup>
 </Project>

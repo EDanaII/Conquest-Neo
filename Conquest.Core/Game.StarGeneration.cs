@@ -8,9 +8,10 @@ using Conquest.Core.Model;
 namespace Conquest.Core {
 	public partial class Game {
         public int? FindStarAt(int x, int y) {
-            for (int i = 1; i < State.Stars.Count; i++)
+            for (int i = 0; i < State.Stars.Count; i++) {
                 if (State.Stars[i].X == x && State.Stars[i].Y == y)
                     return i;
+            }
 
             return null;
         }

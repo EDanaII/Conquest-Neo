@@ -129,13 +129,6 @@ public sealed class GameShell {
         else _io.WriteLine("usage: discover x y [radius]");
     }
 
-    private int? FindStarAt(int x, int y) {
-        for (int i = 1; i < _game.State.Stars.Count; i++)
-            if (_game.State.Stars[i].X == x && _game.State.Stars[i].Y == y)
-                return i;
-        return null;
-    }
-
     private void Fog(string[] parts) {
         if (parts.Length == 1) _game.State.FogEnabled = !_game.State.FogEnabled;
         else _game.State.FogEnabled = parts[1].Equals("on", StringComparison.OrdinalIgnoreCase);
@@ -235,7 +228,7 @@ public sealed class GameShell {
             if (tf == null) continue;
             if (tf.X == 0 && tf.Y == 0 && tf.Scouts == 0 && tf.Destination is null) continue;
 
-            var atText = FindStarAt(tf.X, tf.Y) is int sid ? $" @ star {sid}" : "";
+            var atText = _game.FindStarAt(tf.X, tf.Y) is int sid ? $" @ star {sid}" : "";
             var destText = (tf.Destination is int d) ? $" -> star {d} (ETA {tf.ETA})" : "";
             _io.WriteLine($"TF {i}: ({tf.X},{tf.Y}) scouts={tf.Scouts}{atText}{destText}");
         }

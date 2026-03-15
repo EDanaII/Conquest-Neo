@@ -21,6 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Conquest.CLI\Conquest.CLI.csproj" />
     <ProjectReference Include="..\Conquest.Core\Conquest.Core.csproj" />
   </ItemGroup>
 

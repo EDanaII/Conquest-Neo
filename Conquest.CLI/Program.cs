@@ -18,6 +18,9 @@ class Program {
         var state = new GameState(config);
         var renderer = new MapRenderer( ); // CLI implementation of IMapRenderer
 
-        return new Game(io, rng, state, renderer).Run( );
+        var game = new Game(rng, state);
+        var shell = new GameShell(game, io, rng, renderer);
+
+        return shell.Run( );
     }
 }

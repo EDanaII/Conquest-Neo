@@ -2,7 +2,7 @@
 
 ## Phase 0 --- Capture & Baseline
 
--   Keep a pristine copy of the original C sources in `/GameLegacyC`
+-   Keep a pristine copy of the original C sources in `/OriginalSource`
     (reference only).
 -   Build the legacy binary once for orientation.
 -   Document high-level game loop, core mechanics (stars, fleets,

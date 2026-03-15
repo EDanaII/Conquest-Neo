@@ -7,11 +7,19 @@ using Conquest.Core.Model;
 
 namespace Conquest.Core {
 	public partial class Game {
+        public int? FindStarAt(int x, int y) {
+            for (int i = 1; i < State.Stars.Count; i++)
+                if (State.Stars[i].X == x && State.Stars[i].Y == y)
+                    return i;
+
+            return null;
+        }
+
         /// <summary>
         /// Places exactly state.Config.NumStars stars in [0..Width) x [0..Height), no overlaps.
         /// Assumes state.Stars list exists and Board is allocated [Width,Height].
         /// </summary>
-        private void GenerateStars(IRng rng, Conquest.Core.Model.GameState state) {
+        public void GenerateStars(IRng rng, Conquest.Core.Model.GameState state) {
             var cfg = state.Config;
 
             if (cfg.Width <= 0 || cfg.Height <= 0)

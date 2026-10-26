@@ -1,77 +1,66 @@
-# Conquest Project Plan (Revised --- 2025-09-01)
+# Conquest Project Plan
 
-## Phase 0 --- Capture & Baseline
+Revised 2026-10-26. The two product phases below replace the earlier numbered scaffold/refactoring phases.
 
--   Keep a pristine copy of the original C sources in `/OriginalSource`
-    (reference only).
--   Build the legacy binary once for orientation.
--   Document high-level game loop, core mechanics (stars, fleets,
-    economy).
+## Phase 1 — Conquest Classic
 
-## Phase 1 --- Repo & Solution Scaffold
+Faithfully reproduce original C behavior and gameplay in C# with a CLI. `OriginalSource` is the primary rules reference. Modern architecture is encouraged when it preserves gameplay. Investigate unclear rules rather than invent replacements. Maintain .NET 8 compatibility and add regression tests for fixes and meaningful functionality.
 
--   Git repo: ✅ Conversion/.gitignore, `.editorconfig` already in
-    place.
--   Projects:
-    -   `Conquest.Core`: all game logic (board, stars, RNG, state,
-        fleets, commands).
-    -   `Conquest.CLI`: minimal bootstrap, console I/O, forwards
-        commands to Core.
-    -   `Conquest.Tests`: xUnit/NUnit for unit + scenario tests.
+### 1. Capture and baseline
 
-## Phase 2 --- Core Porting
+- Present: original C sources, Core/CLI/test projects, Git ignore/style files, documentation, and Ubuntu .NET 8 CI.
+- Reconnaissance baseline (2026-10-26): restore and Release build pass; 22 tests pass. This does not establish gameplay fidelity.
+- Pending: reproducible legacy build, documented original rules/loop, and decisions on RNG/output fidelity and apparent C defects.
 
--   Board, stars, fog-of-war: ✅ already ported.
--   RNG (`CRandRng`): ✅ works.
--   CLI commands in place: `help`, `config`, `seed`, `roll`, `genstars`,
-    `map`, `explore`, `fog`, `liststars`, `reveal`, `nameat`.
--   Next: introduce **fleets** (`TaskForce`, `place`, `tick`) and expand
-    **Player** state (money, colonies, upkeep).
+### 2. Stabilize the existing CLI first
 
-## Phase 3 --- Playability Tests
+- Address invalid-command crashes, EOF handling, zero-coordinate/index defects, and disconnected visibility/rendering.
+- Investigate possible nonterminating generation on small/dense boards.
+- Correct occupancy and snapshot restoration with explicit decisions on supported semantics.
+- Add regression cases for real rendering, malformed commands, zero axes, overlaps, restored games, and generation boundaries.
 
--   Implement scripted I/O to run canned CLI sequences.
--   Add acceptance tests that validate **feel**, not exact parity:
-    -   Star density and spacing within expected bands.
-    -   Exploration reveals stars at consistent pace.
-    -   Fleets move and arrive correctly; overlaps trigger encounters.
-    -   Economy: no runaway growth or early starvation in 20--50 turns.
+See [DevelopmentBacklog.md](DevelopmentBacklog.md) for evidence and priorities. Complete this stabilization pass before adding major gameplay systems.
 
-## Phase 4 --- Refactoring & Expansion
+### 3. Resolve architecture incrementally
 
--   Encapsulate subsystems: `FleetSystem`, `Economy`, `Combat`.
--   Replace magic globals with typed classes (`Player`, `TaskForce`,
-    `Star`, `Planet`).
--   Improve error handling, exceptions, collections, immutability where
-    helpful.
+Discuss significant decisions before implementation: authoritative state/indexing, occupancy, visibility, shell/engine boundaries, generator consolidation, and save scope. Keep changes reversible and game rules independent of presentation.
 
-## Phase 5 --- Graphics Upgrade Path
+Existing: board/stars/RNG, partial visibility, fleet placement/course/tick operations, and limited snapshots. Original movement and exploration behavior remain incomplete.
 
--   Keep Core logic UI-agnostic.
--   Later add `Conquest.UI` (MonoGame/Avalonia/Godot).
--   Prototype tile/sprite rendering, map overlays.
+### 4. Restore original gameplay systems
 
-## Phase 6 --- Tooling & Quality
+Proposed dependency order, to refine through C-source investigation:
 
--   CI pipeline (`dotnet build`, `dotnet test`).
--   Roslyn analyzers + stylecop.
--   `docs/` folder: architecture.md, command reference.
--   Example playthrough transcripts as **reference only**, not golden
-    outputs.
+1. Original initialization/configuration and planet/colony/player state.
+2. Fleet lifecycle, splitting/joining, distance/range/velocity movement, exploration, and arrivals.
+3. Landing, ownership, population, investment/production, and research.
+4. Fleet/planet combat, bombardment, withdrawal, conquest/revolt, and enemy decisions.
+5. Full turn orchestration, termination, scoring, and victory/defeat.
 
-## Quick Start Checklist
+Trace rules to original source and test them. Distinguish original behavior, conversion defects, and enhancements. Current Manhattan travel and manually placed free scouts are scaffold behavior, not accepted Classic rules.
 
--   Clone repo, run `dotnet build`.
--   Run CLI: `dotnet run --project Conquest.CLI`.
--   Commands to try: `seed 1`, `genstars`, `map`, `explore`, `place`,
-    `tick`.
--   Tests: `dotnet test` --- includes scenario tests.
--   Scripts: add `script run demo1` to auto-exercise multi-turn
-    sequence.
+### 5. Classic acceptance
 
-## Revision History
+- Exercise initialization, exploration, colonies, economy, research, combat, AI, and termination in representative end-to-end scenarios.
+- Validate documented original rules and boundary cases; resolve required RNG/output fidelity and legacy-defect policy before declaring completion.
+- Verify .NET 8 build/tests and keep documentation aligned with implemented commands and limitations.
 
--   **2025-09-01:** Dropped strict C parity; tests now focus on
-    playability bands.\
--   **2025-09-03/04:** Repo snapshots uploaded; confirmed scaffold and
-    CLI/Core split.
+Existing scripted I/O supports scenario testing. Density/spacing bands and 20–50-turn economy scenarios may supplement rule tests where justified by the C source; subjective feel is not a substitute for fidelity. Reference transcripts remain useful; exact transcript testing requirements are unresolved.
+
+## Phase 2 — Conquest Modernized
+
+Begin after a working, tested Classic baseline. Potential work includes usability, diagnostics, gameplay extensions, graphical front ends, and rendering/input/audio abstractions. No graphics framework is selected.
+
+Additional analyzer/style tooling, a command reference, reference playthroughs, and a script runner remain possible improvements. CI and scripted test I/O already exist; an interactive `script run demo1` command does not.
+
+## Quick start checklist
+
+- Restore/build/test with commands in the [README](../README.md).
+- Run the CLI; try `seed 1`, `genstars`, `map`, `place 1`, `move 1 2`, `tick`, and `tf list`.
+- Follow [AGENTS.md](../AGENTS.md); Git history/branch mutations require explicit permission.
+
+## Revision history
+
+- **2025-09-01:** Earlier plan emphasized playability bands and dropped strict C parity.
+- **2025-09-03/04:** Snapshots recorded scaffold and CLI/Core work.
+- **2026-10-26:** Established Classic-first behavioral fidelity followed by modernization; corrected implementation status and prioritized CLI stabilization. Exact RNG/transcript parity remains a design decision.

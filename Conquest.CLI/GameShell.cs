@@ -7,10 +7,12 @@ using System.Text;
 namespace Conquest.CLI;
 
 public sealed class GameShell {
-    private readonly Game _game;
+    private Game _game;
     private readonly IGameIO _io;
     private readonly IRng _rng;
     private readonly IMapRenderer _renderer;
+
+    public Game CurrentGame => _game;
 
     public GameShell(Game game, IGameIO io, IRng rng, IMapRenderer renderer) {
         _game = game ?? throw new ArgumentNullException(nameof(game));
@@ -33,69 +35,98 @@ public sealed class GameShell {
 
             var cmd = parts[0].ToLowerInvariant( );
 
-            switch (cmd) {
-                case "q":
-                case "quit":
-                    return 0;
+            try {
+                switch (cmd) {
+                    case "newgame":
+                        if (!NewGame()) return 0;
+                        continue;
+                    case "q":
+                    case "quit":
+                        return 0;
 
-                case "seed":
-                    Seed(parts);
-                    continue;
+                    case "seed":
+                        Seed(parts);
+                        continue;
 
-                case "genstars":
-                    _game.GenerateStars( );
-                    continue;
+                    case "genstars":
+                        _game.GenerateStars( );
+                        continue;
 
-                case "m":
-                case "map":
-                    _renderer.Render(_io, _game.State);
-                    continue;
+                    case "m":
+                    case "map":
+                        _renderer.Render(_io, _game.State);
+                        continue;
 
-                case "fog":
-                    Fog(parts);
-                    continue;
+                    case "fog":
+                        Fog(parts);
+                        continue;
 
-                case "reveal":
-                    Reveal(parts);
-                    continue;
+                    case "reveal":
+                        Reveal(parts);
+                        continue;
 
-                case "discover":
-                    Discover(parts);
-                    continue;
+                    case "discover":
+                        Discover(parts);
+                        continue;
 
-                case "stars":
-                    Stars( );
-                    continue;
+                    case "stars":
+                        Stars( );
+                        continue;
 
-                case "h":
-                case "help":
-                    Help( );
-                    continue;
+                    case "h":
+                    case "help":
+                        Help( );
+                        continue;
 
-                case "place":
-                    Place(parts);
-                    continue;
+                    case "place":
+                        Place(parts);
+                        continue;
 
-                case "move":
-                case "course":
-                    Course(parts);
-                    continue;
+                    case "move":
+                    case "course":
+                        Course(parts);
+                        continue;
 
-                case "tick":
-                    Tick(parts);
-                    continue;
+                    case "tick":
+                        Tick(parts);
+                        continue;
 
-                case "tf":
-                    TaskForce(parts);
-                    continue;
+                    case "tf":
+                        TaskForce(parts);
+                        continue;
 
-                default:
-                    _io.WriteLine("Unknown command. Try 'help'.");
-                    continue;
+                    default:
+                        _io.WriteLine("Unknown command. Try 'help'.");
+                        continue;
+                }
+            }
+            catch (InvalidOperationException ex) {
+                _io.WriteLine(ex.Message);
             }
         }
 
         return 0;
+    }
+
+    private bool NewGame() {
+        var config = _game.State.Config;
+        if (config.NumStars is < 1 or > Constants.Max.Stars) {
+            _io.WriteLine("Classic startup requires 1-26 stars.");
+            return true;
+        }
+        try {
+            var state = new GameState(config) { FogEnabled = _game.State.FogEnabled };
+            var candidate = new Game(_rng, state);
+            candidate.GenerateStars();
+            candidate.InitializeClassicPlayers();
+            candidate.InitializeClassicEnemy();
+            if (!new ClassicStartupFlow(_io).Run(candidate)) return false;
+            _game = candidate;
+        }
+        catch (ArgumentException ex) {
+            _io.WriteLine($"Cannot start Classic game: {ex.Message}");
+        }
+        return true;
     }
 
     private void Course(string[] parts) {
@@ -142,7 +173,7 @@ public sealed class GameShell {
     }
 
     private void Help( ) {
-        _io.WriteLine("Commands: quit (q) | seed N | genstars | map (m) | fog [on|off] | reveal [on|off|all] | discover x y [r] | stars | place <starId> [tfIndex] [ships] | move <tfIndex> <starId> | tick [n] | tf [map|list]");
+        _io.WriteLine("Commands: newgame | quit (q) | seed N | genstars | map (m) | fog [on|off] | reveal [on|off|all] | discover x y [r] | stars | place <starId> [tfIndex] [ships] | move <tfIndex> <starId> | tick [n] | tf [map|list]");
     }
 
     private void Place(string[] parts) {

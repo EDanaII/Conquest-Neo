@@ -35,6 +35,10 @@ There are no implemented `Parser`, `CombatSystem`, or `MovementSystem` classes. 
 
 `GameShell` parses commands using a switch, calls engine operations, directly changes visibility state, and accesses `State.FleetsSys`. It also embeds a separate `tf map` renderer. It currently has more responsibilities than a minimal command adapter.
 
+`newgame` constructs a fresh `GameState`/`Game` with the current configuration and shell RNG, preserving the fog preference, then generates the galaxy and runs Classic player attributes and enemy initialization. `ClassicStartupFlow` renders a letter-only selection map, obtains a manual star letter or uses Core's automatic capacity selection, and translates quantity-prefixed C/S/B/W/V/R tokens into existing Core operations. It processes all tokens on a line before finalizing, including unaffordable tokens following budget exhaustion. Status shows only the player's fleet, technology/progress, and balance. The selection map neither reads enemy occupancy nor changes visibility. The flow uses line input; it does not reproduce raw terminal editing, 25-character truncation, or the original report subprompts. Q remains a selectable star; only the word `quit` exits the selection prompt.
+
+After completed startup, the shell replaces its current game (`CurrentGame`); EOF or quit during startup exits without finalizing or replacing it. RNG draws already consumed by an abandoned candidate are not rolled back. The existing debug operations are unchanged; the shell reports Core lifecycle rejections (including blocked shared-start ticks and forbidden regeneration) and continues accepting commands. Startup does not implement a complete turn loop, combat, or enemy AI. `newgame` is explicit and is not invoked by `Program` automatically.
+
 `ConsoleIO` implements `IGameIO`. `SystemRng` is an alternative adapter, not selected by `Program`.
 
 ### Conquest.Tests
@@ -59,7 +63,7 @@ No graphics project or `IRenderer`/`IInput`/`IAudio` abstraction set is implemen
 - `ICRandRng`: separate `Seed(uint)` and `NextInt(maxExclusive)` contract.
 - `IMapRenderer`: `Render(IGameIO, GameState)`.
 
-The shell checks for null input, but `IGameIO.ReadLine` is non-nullable and `ConsoleIO` converts EOF to an empty string. That contract mismatch needs correction.
+`IGameIO.ReadLine` returns a nullable string; `ConsoleIO` preserves EOF as null so both the command shell and interactive startup terminate cleanly when redirected input ends.
 
 ## Known inconsistencies and boundaries to resolve
 
@@ -79,4 +83,4 @@ Milestone 4 implements enemy startup research; Milestone 6 adds player-only star
 
 ## Classic player startup boundaries
 
-`GameConfig.StartingMoney` defaults to 30; transports remain independent. Core configuration supports nonnegative money, transports, and capacity for this session. Existing `GameConfig.Validate()` still exposes a clamped-zero `Capacity` for negative requests outside this path; it now retains the requested value internally so Classic player startup can reject it instead of silently treating it as manual selection. Explicitly assigning a supported capacity replaces that request. This legacy/configuration mismatch remains for later CLI integration. No new CLI options, investment-text parser, raw-key input, report commands, or 25-character line handling are introduced. A future adapter must preserve purchase ordering, permit only end-of-spending finalization, and use actual battlestar cost 70 despite the C startup help's conflicting 75. Negative budgets/capacities and overflowing quantities are deliberately unsupported instead of copying undefined C behavior or clamping. Direct mutation of public model collections remains a general invariant risk; startup operations validate lifecycle, board links, and starting fleet locations but do not redesign model ownership.
+`GameConfig.StartingMoney` defaults to 30; transports remain independent. Core configuration supports nonnegative money, transports, and capacity for this session. Existing `GameConfig.Validate()` still exposes a clamped-zero `Capacity` for negative requests outside this path; it retains the requested value internally so Classic player startup rejects it instead of silently treating it as manual selection. Explicitly assigning a supported capacity replaces that request. No new CLI configuration options, configured-investment text, raw-key input, report subprompts, or 25-character line handling are introduced. The CLI adapter preserves purchase ordering and only finalizes after end-of-line budget exhaustion; actual battlestar cost is 70 despite the C startup help's conflicting 75. Negative budgets/capacities and overflowing quantities are deliberately unsupported instead of copying undefined C behavior or clamping. Direct mutation of public model collections remains a general invariant risk; startup operations validate lifecycle, board links, and starting fleet locations but do not redesign model ownership.

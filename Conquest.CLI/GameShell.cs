@@ -104,7 +104,13 @@ public sealed class GameShell {
         if (!int.TryParse(parts[1], out var tfIndex)) { _io.WriteLine("tfIndex must be int"); return; }
         if (!int.TryParse(parts[2], out var starId)) { _io.WriteLine("starId must be int"); return; }
 
-        var tf = _game.State.Players[1].Tf[tfIndex];
+        var fleets = _game.State.Players[1].Tf;
+        if (tfIndex < 1 || tfIndex >= fleets.Length) {
+            _io.WriteLine($"Illegal fleet slot {tfIndex}. Use 1-{fleets.Length - 1}.");
+            return;
+        }
+
+        var tf = fleets[tfIndex];
         if (tf == null || (tf.X == 0 && tf.Y == 0)) {
             _io.WriteLine($"TF {tfIndex} is not placed. Use: place <starId> [tfIndex=1] [ships=3]");
             return;

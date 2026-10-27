@@ -52,10 +52,7 @@ public partial class Game {
     /// </summary>
     public void InitializeClassicEnemyResearch() {
         var enemy = State.Players[0];
-        if (!State.ClassicPlayerInitializationCompleted || State.EnemyStartupResearchStarted
-            || State.EnemyResearchField != null || enemy.Velocity is < 1 or > 3
-            || enemy.VelocityResearchProgress != 0 || enemy.RangeResearchProgress != 0
-            || enemy.WeaponsResearchProgress != 0) {
+        if (!CanInitializeEnemyResearch()) {
             throw new InvalidOperationException("Enemy startup research requires successful Classic player initialization and fresh startup research state, and can run only once.");
         }
 
@@ -64,6 +61,50 @@ public partial class Game {
         State.EnemyResearchField = ResearchField.Velocity;
         State.EnemyResearchField = ResearchRules.ApplyEnemyStartupResearch(enemy, State.Players[1], _rng);
     }
+
+    /// <summary>Complete initmach() fleet, research, and starting-star setup.</summary>
+    public void InitializeClassicEnemy() {
+        if (State.ClassicEnemyInitializationStarted || !CanInitializeEnemyResearch()
+            || !State.HasGeneratedGalaxy || State.Stars.Count == 0 || Turn != 0 || State.HasAdvancedTurns
+            || !HasUnplacedStartingFleets()
+            || State.Board.Cast<Sector>().Any(c => c.Tf != -1 || c.TaskForces.Length != 2
+                || c.TaskForces.Any(tf => tf != null))
+            || State.Stars.Where((star, index) =>
+                (uint)star.X >= (uint)State.Board.GetLength(0)
+                || (uint)star.Y >= (uint)State.Board.GetLength(1)
+                || !ReferenceEquals(State.Board[star.X, star.Y].StarRef, star)
+                || State.Board[star.X, star.Y].Star != index).Any()) {
+            throw new InvalidOperationException("Classic enemy initialization requires a fresh generated galaxy, completed player initialization, and unplaced starting fleets; it can run only once and must precede independent startup research.");
+        }
+
+        State.ClassicEnemyInitializationStarted = true;
+        var fleet = State.Players[0].Tf[1];
+        fleet.Cruisers = 1;
+        fleet.Scouts = 2;
+        InitializeClassicEnemyResearch();
+        int winner = EnemyStartingStarRules.SelectStartingStar(State.Stars, State.Players[0].Range, _rng);
+        var star = State.Stars[winner];
+        fleet.Destination = winner;
+        fleet.ETA = fleet.EtaOriginal = 0;
+        fleet.X = star.X;
+        fleet.Y = star.Y;
+        star.ExploredBy[0] = true;
+        State.Board[star.X, star.Y].TaskForces[0] = fleet;
+        State.ClassicEnemyInitializationCompleted = true;
+    }
+
+    private bool CanInitializeEnemyResearch() =>
+        State.ClassicPlayerInitializationCompleted && !State.EnemyStartupResearchStarted
+        && State.EnemyResearchField == null && State.Players[0].Velocity is >= 1 and <= 3
+        && State.Players[0].VelocityResearchProgress == 0
+        && State.Players[0].RangeResearchProgress == 0 && State.Players[0].WeaponsResearchProgress == 0;
+
+    private bool HasUnplacedStartingFleets() => State.Players.All(player =>
+        player.Tf.Skip(1).Select((tf, index) => tf != null && tf.X == 0 && tf.Y == 0
+            && tf.Destination == null && tf.ETA == 0 && tf.EtaOriginal == 0
+            && tf.Scouts == 0 && tf.Cruisers == 0 && tf.BattleStars == 0
+            && tf.Blasting == 0 && tf.Withdrew == 0
+            && tf.Transports == (index == 0 ? State.Config.StartingTransports : 0)).All(fresh => fresh));
 
     private bool HasFreshPlayers() => State.Players.All(player =>
         player.Velocity == 0 && player.Range == 0 && player.Weapons == 0

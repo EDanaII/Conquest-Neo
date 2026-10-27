@@ -5,6 +5,9 @@ public partial class GameState {
     internal bool ClassicPlayerInitializationStarted { get; set; }
     internal bool ClassicPlayerInitializationCompleted { get; set; }
     internal bool EnemyStartupResearchStarted { get; set; }
+    internal bool ClassicEnemyInitializationStarted { get; set; }
+    internal bool ClassicEnemyInitializationCompleted { get; set; }
+    internal bool HasAdvancedTurns { get; set; }
     public ResearchField? EnemyResearchField { get; internal set; }
 
     public GameConfig Config { get; }

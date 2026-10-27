@@ -142,11 +142,11 @@ public sealed class GameShell {
         }
 
         var tf = fleets[tfIndex];
-        if (tf == null || (tf.X == 0 && tf.Y == 0)) {
+        if (tf == null || !HasPlacedTaskForce(1, tf)) {
             _io.WriteLine($"TF {tfIndex} is not placed. Use: place <starId> [tfIndex=1] [ships=3]");
             return;
         }
-        if (tf.Scouts <= 0) {
+        if (!HasShips(tf)) {
             _io.WriteLine($"TF {tfIndex} has 0 ships. Use: place <starId> {tfIndex} <ships>");
             return;
         }
@@ -174,6 +174,7 @@ public sealed class GameShell {
 
     private void Help( ) {
         _io.WriteLine("Commands: newgame | quit (q) | seed N | genstars | map (m) | fog [on|off] | reveal [on|off|all] | discover x y [r] | stars | place <starId> [tfIndex] [ships] | move <tfIndex> <starId> | tick [n] | tf [map|list]");
+        _io.WriteLine("Fleet IDs are numeric 1-26 (original C fleets a-z, entered as A-Z); star IDs are zero-based (0=A). Example: move 1 2 sends fleet a to star C.");
     }
 
     private void Place(string[] parts) {
@@ -259,16 +260,31 @@ public sealed class GameShell {
     }
 
     private void TfList( ) {
+        _io.WriteLine("Player fleets: numeric IDs 1-26 correspond to original C a-z; star IDs are zero-based (0=A).");
         var p = _game.State.Players[1];
         for (int i = 1; i < p.Tf.Length; i++) {
             var tf = p.Tf[i];
-            if (tf == null) continue;
-            if (tf.X == 0 && tf.Y == 0 && tf.Scouts == 0 && tf.Destination is null) continue;
+            if (tf == null || !HasPlacedTaskForce(1, tf)) continue;
 
-            var atText = _game.FindStarAt(tf.X, tf.Y) is int sid ? $" @ star {sid}" : "";
-            var destText = (tf.Destination is int d) ? $" -> star {d} (ETA {tf.ETA})" : "";
-            _io.WriteLine($"TF {i}: ({tf.X},{tf.Y}) scouts={tf.Scouts}{atText}{destText}");
+            var atText = _game.FindStarAt(tf.X, tf.Y) is int sid ? $" @ star {sid} ({_game.State.Stars[sid].Name})" : "";
+            var orderText = tf.ETA > 0 && tf.Destination is int d && (uint)d < (uint)_game.State.Stars.Count
+                ? $" travelling -> star {d} ({_game.State.Stars[d].Name}) (ETA {tf.ETA})"
+                : " stationary";
+            _io.WriteLine($"TF {i}: ({tf.X},{tf.Y}) transports={tf.Transports} scouts={tf.Scouts} cruisers={tf.Cruisers} battlestars={tf.BattleStars}{atText}{orderText}");
         }
+    }
+
+    private static bool HasShips(TaskForce tf) =>
+        tf.Transports > 0 || tf.Scouts > 0 || tf.Cruisers > 0 || tf.BattleStars > 0;
+
+    private bool HasPlacedTaskForce(int team, TaskForce tf) {
+        var state = _game.State;
+        if ((uint)tf.X >= (uint)state.Board.GetLength(0) || (uint)tf.Y >= (uint)state.Board.GetLength(1))
+            return false;
+        // Classic dest retains the current star at ETA zero; debug placement and
+        // scaffold arrival instead retain the team's sector reference with dest null.
+        return (tf.Destination is int star && (uint)star < (uint)state.Stars.Count)
+            || ReferenceEquals(state.Board[tf.X, tf.Y].TaskForces[team], tf);
     }
 
     private void Tick(string[] parts) {
@@ -326,40 +342,39 @@ public sealed class GameShell {
         var io = _io;
         int W = _game.State.Config.Width, H = _game.State.Config.Height;
 
-        var grid = new char[H + 1, W + 1];
+        var grid = new string[H, W];
 
         // background
-        for (int y = 1; y <= H; y++)
-            for (int x = 1; x <= W; x++)
-                grid[y, x] = '.';  // later you can switch to ' ' for fog
+        for (int y = 0; y < H; y++)
+            for (int x = 0; x < W; x++)
+                grid[y, x] = ".";
 
-        // stars first (A..Z)
-        for (int i = 1; i < _game.State.Stars.Count; i++) {
+        // Use actual names, including star zero, rather than deriving letters from indices.
+        for (int i = 0; i < _game.State.Stars.Count; i++) {
             var s = _game.State.Stars[i];
-            if (s.X >= 1 && s.X <= W && s.Y >= 1 && s.Y <= H)
-                grid[s.Y, s.X] = (char)('A' + ((i - 1) % 26));
+            if ((uint)s.X < (uint)W && (uint)s.Y < (uint)H)
+                grid[s.Y, s.X] = s.Name;
         }
 
-        // fleets overlay (draw even if scouts==0; skip truly unplaced (0,0))
+        // Preserve the debug team overlay, including placed fleets with zero ships.
         for (int team = 0; team <= 1; team++) {
             var p = _game.State.Players[team];
             for (int i = 1; i < p.Tf.Length; i++) {
                 var tf = p.Tf[i];
-                if (tf == null) continue;
+                if (tf == null || !HasPlacedTaskForce(team, tf)) continue;
                 int x = tf.X, y = tf.Y;
-                if (x == 0 && y == 0) continue; // not placed yet
-                if (x >= 1 && x <= W && y >= 1 && y <= H)
-                    grid[y, x] = team == 1 ? '1' : '2';
+                if ((uint)x < (uint)W && (uint)y < (uint)H)
+                    grid[y, x] = team == 1 ? "1" : "2";
             }
         }
 
-        var header = "   " + string.Concat(Enumerable.Range(1, W).Select(c => (char)('0' + (c % 10))));
+        io.WriteLine("tf map: zero-based coordinates; 1=player team, 2=enemy team (debug view; markers are not fleet IDs).");
+        var header = "   " + string.Concat(Enumerable.Range(0, W).Select(x => $"{x,3}"));
         io.WriteLine(header);
-        for (int y = H; y >= 1; y--) {
+        for (int y = H - 1; y >= 0; y--) {
             var sb = new System.Text.StringBuilder( );
             sb.Append(y.ToString( ).PadLeft(2)).Append(' ');
-            for (int x = 1; x <= W; x++) sb.Append(grid[y, x]);
-            sb.Append(' ').Append(y.ToString( ).PadLeft(2));
+            for (int x = 0; x < W; x++) sb.Append($"{grid[y, x],3}");
             io.WriteLine(sb.ToString( ));
         }
         io.WriteLine(header);

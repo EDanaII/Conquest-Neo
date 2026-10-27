@@ -60,6 +60,26 @@ namespace Conquest.Core {
                 var cell = state.Board[x, y];
                 cell.StarRef = s;
                 cell.Star = i; // keep legacy/indexy field in sync
+                AssignPlanets(rng, s);
+            }
+        }
+
+        // OriginalSource/init.c: assign_planets; Next upper bounds are exclusive.
+        private static void AssignPlanets(IRng rng, Star star) {
+            star.Planets.Clear();
+            int count = rng.Next(1, 5) - 2;
+            if (count < 0) count = 1;
+
+            for (int i = 1; i <= count; i++) {
+                int number = rng.Next(1, 3) + 2 * i - 2;
+                int capacity = rng.Next(1, 5) > 2
+                    ? 10 * (rng.Next(1, 5) + 2)
+                    : 5 * rng.Next(1, 6);
+                star.Planets.Add(new Planet(star) {
+                    Number = number,
+                    Capacity = capacity,
+                    PlayerSeenCapacity = capacity
+                });
             }
         }
     }

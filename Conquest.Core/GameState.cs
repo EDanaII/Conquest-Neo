@@ -9,6 +9,16 @@ public partial class GameState {
     internal bool ClassicEnemyInitializationCompleted { get; set; }
     internal bool HasAdvancedTurns { get; set; }
     public ResearchField? EnemyResearchField { get; internal set; }
+    public PlayerStartupStage PlayerStartupStage { get; internal set; }
+    public int? PlayerStartingStar { get; internal set; }
+    public int PlayerStartupBalance { get; internal set; }
+    public bool PendingSharedStartEncounter { get; internal set; }
+
+    internal void EnsureStartupAllowsAdvancement() {
+        if (PendingSharedStartEncounter
+            || PlayerStartupStage is not (Model.PlayerStartupStage.NotStarted or Model.PlayerStartupStage.Completed))
+            throw new InvalidOperationException("Player startup must finish and any shared-start encounter must be resolved before advancement.");
+    }
 
     public GameConfig Config { get; }
 

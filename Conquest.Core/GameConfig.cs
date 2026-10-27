@@ -9,10 +9,17 @@ public sealed class GameConfig {
     public int NumStars { get; set; } = Constants.Max.Stars;
     public int MaxTurns { get; set; } = Constants.Max.Turns;
     public int StartingTransports { get; set; } = Constants.Init.Units;
+    public int StartingMoney { get; set; } = Constants.Init.Money;
 
     public double VictoryMultiplier { get; set; } = 1.5;
     public double OverwhelmFactor { get; set; } = 8.0;
-    public int Capacity { get; set; } = 0;
+    private int _capacity;
+    // Keep the legacy public clamp while retaining malformed requests for Classic validation.
+    internal int RequestedStartingCapacity { get; private set; }
+    public int Capacity {
+        get => _capacity;
+        set { _capacity = value; RequestedStartingCapacity = value; }
+    }
     public int? Seed { get; set; } = null;
 
     public static GameConfig Default => new GameConfig( ).Validate( );
@@ -60,7 +67,7 @@ public sealed class GameConfig {
         if (OverwhelmFactor <= 0) OverwhelmFactor = 1.0;
 
         // Capacity can be zero or positive; clamp to something sane if you have a max
-        if (Capacity < 0) Capacity = 0;
+        if (Capacity < 0) _capacity = 0;
 
         return this;
     }

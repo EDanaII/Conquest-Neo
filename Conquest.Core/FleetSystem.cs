@@ -64,6 +64,7 @@ namespace Conquest.Core {
         /// Advance all task forces one step toward their destinations; update board occupancy.
         /// </summary>
         public void Tick( ) {
+            _state.EnsureStartupAllowsAdvancement();
             _state.HasAdvancedTurns = true;
             for (int team = 0; team <= 1; team++) {
                 var p = _state.Players[team];

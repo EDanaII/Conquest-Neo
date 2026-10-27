@@ -3,6 +3,9 @@
 public partial class GameState {
     internal bool HasGeneratedGalaxy { get; set; }
     internal bool ClassicPlayerInitializationStarted { get; set; }
+    internal bool ClassicPlayerInitializationCompleted { get; set; }
+    internal bool EnemyStartupResearchStarted { get; set; }
+    public ResearchField? EnemyResearchField { get; internal set; }
 
     public GameConfig Config { get; }
 

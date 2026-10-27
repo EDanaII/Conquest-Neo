@@ -43,6 +43,26 @@ public partial class Game {
                 enemy.PopulationGrowthRate = (_rng.Next(1, 5) + 3) / 10.0;
                 break;
         }
+        State.ClassicPlayerInitializationCompleted = true;
+    }
+
+    /// <summary>
+    /// Perform only initmach()'s initial research, after successful player initialization.
+    /// Fleet setup, starting-star selection, and general research spending are separate.
+    /// </summary>
+    public void InitializeClassicEnemyResearch() {
+        var enemy = State.Players[0];
+        if (!State.ClassicPlayerInitializationCompleted || State.EnemyStartupResearchStarted
+            || State.EnemyResearchField != null || enemy.Velocity is < 1 or > 3
+            || enemy.VelocityResearchProgress != 0 || enemy.RangeResearchProgress != 0
+            || enemy.WeaponsResearchProgress != 0) {
+            throw new InvalidOperationException("Enemy startup research requires successful Classic player initialization and fresh startup research state, and can run only once.");
+        }
+
+        // Mark the shared state before RNG use; failed research cannot be retried implicitly.
+        State.EnemyStartupResearchStarted = true;
+        State.EnemyResearchField = ResearchField.Velocity;
+        State.EnemyResearchField = ResearchRules.ApplyEnemyStartupResearch(enemy, State.Players[1], _rng);
     }
 
     private bool HasFreshPlayers() => State.Players.All(player =>

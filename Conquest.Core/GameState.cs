@@ -1,6 +1,9 @@
 ﻿namespace Conquest.Core.Model;
 
 public partial class GameState {
+    internal bool HasGeneratedGalaxy { get; set; }
+    internal bool ClassicPlayerInitializationStarted { get; set; }
+
     public GameConfig Config { get; }
 
     // All engine data is 0-based internally.
@@ -25,8 +28,10 @@ public partial class GameState {
                 Board[x, y] = new Sector { ViewingTeam = 1 }; // 1 = player viewpoint by default
     }
 
-    // Place stars at unique coords; safe to call multiple times (it clears previous placement)
+    // Place stars at unique coords; repeat placement is allowed before Classic initialization.
     public void PlaceStars(IRng rng) {
+        if (ClassicPlayerInitializationStarted)
+            throw new InvalidOperationException("Cannot regenerate the galaxy after Classic player initialization has started.");
         // clear old placements
         for (int x = 0; x < Config.Width; x++)
             for (int y = 0; y < Config.Height; y++)

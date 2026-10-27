@@ -12,13 +12,14 @@ The intended boundary is UI-independent game logic in Core, with input and prese
 
 - `Game`: engine facade holding RNG/state; generates stars, finds stars by coordinates, and advances fleet movement and the turn counter.
 - `GameState`: configuration, stars, two players, board sectors, visibility state, and lazily constructed `FleetSystem`.
-- `Player`, `TaskForce`, `Star`, `Sector`, `BoardPoint`: current state models. Player currently contains fleets; there is no planet, colony, economy, or research model.
+- `Player`, `TaskForce`, `Star`, `Planet`, `Sector`, `BoardPoint`: current state models. Stars own planet collections; planets retain their parent star, ownership, population, IU, defenses, and intelligence fields. `Ownership` matches C's enemy/player/none values. Player stores fleets, technology levels, population growth, and research progress; colony, economy, and research operations remain absent.
+- `Game.InitializeClassicPlayers()`: explicit Core initialization after successful `Game.GenerateStars()`. Requires fresh player/fleet state, no exploration or colonization, and no elapsed turns; rejects repeat initialization even through another `Game` facade. Establishes original attributes, configured starting transports, and the two enemy-advantage draws. Does not place fleets, grant enemy warships, make research decisions, spend player funds, or advance turns. The CLI does not invoke it automatically. A failed initialization attempt after RNG consumption requires a new state.
 - `FleetSystem`: placement, courses, Manhattan ETA/movement, and occupancy updates. No original range/velocity rules, combat, encounters, or arrival exploration.
 - `GameConfig` and `Constants`: configuration parsing/validation and selected original constants. Some settings have no implemented gameplay consumer.
 - `CRandRng`: deterministic LCG implementing `IRng`, `ISeedableRng`, and `ICRandRng`. Original sequence equivalence is not established.
 - `SaveSystem`: JSON snapshot prototype for selected configuration, fog, and star fields. It omits substantial game state and does not rebuild board star links on load.
 - `CommandRouter` and `GenStarsHandler`: separate command infrastructure not wired into `GameShell`. The handler prints coordinates without updating active game state.
-- Star placement exists in `Game.GenerateStars`, `GameState.PlaceStars`, and the separate spacing-aware `StarGenerator`. The interactive shell uses `Game.GenerateStars`, enforcing uniqueness but not spacing.
+- Star placement exists in `Game.GenerateStars`, `GameState.PlaceStars`, and the separate spacing-aware `StarGenerator`. The interactive shell uses `Game.GenerateStars`, enforcing uniqueness but not spacing and generating planets immediately after each star using the original C draw order. The other generation paths do not initialize planets or satisfy the Classic initialization prerequisite. Both state-mutating placement APIs reject regeneration once Classic player initialization starts, before changing state or consuming random draws; this guard belongs to the shared `GameState`.
 - `MapRenderer` and `SectorView`: additional presentation adapters with behavior differing from the active CLI renderer.
 
 There are no implemented `Parser`, `CombatSystem`, or `MovementSystem` classes. Earlier documentation described intended systems as existing code.

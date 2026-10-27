@@ -21,6 +21,9 @@ namespace Conquest.Core {
         /// Assumes state.Stars list exists and Board is allocated [Width,Height].
         /// </summary>
         public void GenerateStars(IRng rng, Conquest.Core.Model.GameState state) {
+            if (state.ClassicPlayerInitializationStarted)
+                throw new InvalidOperationException("Cannot regenerate the galaxy after Classic player initialization has started.");
+            state.HasGeneratedGalaxy = false;
             var cfg = state.Config;
 
             if (cfg.Width <= 0 || cfg.Height <= 0)
@@ -62,6 +65,7 @@ namespace Conquest.Core {
                 cell.Star = i; // keep legacy/indexy field in sync
                 AssignPlanets(rng, s);
             }
+            state.HasGeneratedGalaxy = true;
         }
 
         // OriginalSource/init.c: assign_planets; Next upper bounds are exclusive.

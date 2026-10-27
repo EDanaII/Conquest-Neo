@@ -8,6 +8,7 @@ public sealed class GameConfig {
     public int Height { get; set; } = Constants.Max.BoardSize;
     public int NumStars { get; set; } = Constants.Max.Stars;
     public int MaxTurns { get; set; } = Constants.Max.Turns;
+    public int StartingTransports { get; set; } = Constants.Init.Units;
 
     public double VictoryMultiplier { get; set; } = 1.5;
     public double OverwhelmFactor { get; set; } = 8.0;

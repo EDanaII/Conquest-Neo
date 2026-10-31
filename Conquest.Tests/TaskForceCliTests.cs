@@ -6,7 +6,7 @@ namespace Conquest.Tests;
 
 public sealed class TaskForceCliTests {
     private static TestGame SmallGame() {
-        var g = TestGame.New(new GameConfig { Width = 4, Height = 4, NumStars = 3 });
+        var g = TestGame.New(new GameConfig { Width = 4, Height = 4, NumStars = 3, SafeExplore = true });
         var positions = new[] { (0, 0), (3, 0), (0, 3) };
         for (int i = 0; i < positions.Length; i++) {
             var star = g.State.Stars[i];
@@ -50,7 +50,9 @@ public sealed class TaskForceCliTests {
 
         int target = start == "A" ? 1 : 0;
         var destination = state.Stars[target];
-        int distance = Math.Abs(destination.X - fleet.X) + Math.Abs(destination.Y - fleet.Y);
+        int distance = (int)(Math.Sqrt(Math.Pow(destination.X - fleet.X, 2) + Math.Pow(destination.Y - fleet.Y, 2)) - 0.049 + 1);
+        state.Players[1].Range = 20; // Fleet recognition is independent of range rejection.
+        destination.ExploredBy[1] = true;
         int outputStart = g.IO.OutputLines.Count;
         Assert.Equal(0, g.RunCommands($"{command} 1 {target}", "tf list", "tick", "tf list"));
         Assert.Same(game, g.Shell.CurrentGame);
@@ -85,7 +87,7 @@ public sealed class TaskForceCliTests {
             case "cruiser": fleet.Cruisers = 2; break;
             case "battlestar": fleet.BattleStars = 2; break;
         }
-        Assert.Null(fleet.Destination); // Preserve the debug placement convention.
+        Assert.Equal(0, fleet.Destination);
         Assert.Equal(0, g.RunCommands("tf list", "tf map", $"{command} 1 1", "tick"));
         Assert.Equal((1, 0), (fleet.X, fleet.Y));
         Assert.Equal(1, fleet.Destination);
@@ -131,7 +133,7 @@ public sealed class TaskForceCliTests {
         var fleet = g.State.FleetsSys.Place(1, 1, 1);
         g.RunCommands($"{command} 1 0", "tick 3", "tf list", "tf map");
         Assert.Equal((0, 0), (fleet.X, fleet.Y));
-        Assert.Null(fleet.Destination); // Existing scaffold arrival behavior is unchanged.
+        Assert.Equal(0, fleet.Destination); // Stationary destination retains star zero.
         Assert.Same(fleet, g.State.Board[0, 0].TaskForces[1]);
         string listing = Assert.Single(g.IO.OutputLines.Where(line => line.StartsWith("TF 1:")));
         Assert.Contains("@ star 0 (A) stationary", listing);
@@ -166,7 +168,7 @@ public sealed class TaskForceCliTests {
         Assert.Contains(output, line => line.StartsWith("TF 26:") && line.Contains("stationary"));
         Assert.Same(player, g.State.Board[0, 0].TaskForces[1]);
         Assert.Same(enemy, g.State.Board[0, 3].TaskForces[0]);
-        Assert.Null(player.Destination);
+        Assert.Equal(0, player.Destination);
     }
 
     [Theory]
@@ -185,15 +187,82 @@ public sealed class TaskForceCliTests {
     }
 
     [Fact]
-    public void PlacedEmptyFleet_StillRejectsMovement_AndHelpExplainsNumericIds() {
+    public void PlacedEmptyFleet_StillRejectsMovement_AndHelpExplainsInterchangeableIds() {
         var g = SmallGame();
         var fleet = g.State.FleetsSys.Place(1, 1, 0, scouts: 0);
         g.RunCommands("move 1 1", "course 1 2", "help", "move A B", "course 1 B");
-        Assert.Equal(2, g.IO.OutputLines.Count(line => line.Contains("TF 1 has 0 ships")));
-        Assert.Contains(g.IO.OutputLines, line => line.Contains("original C fleets a-z, entered as A-Z"));
-        Assert.Contains(g.IO.OutputLines, line => line.Contains("star IDs are zero-based (0=A)"));
-        Assert.Contains(g.IO.OutputLines, line => line.Contains("tfIndex must be int"));
-        Assert.Contains(g.IO.OutputLines, line => line.Contains("starId must be int"));
-        Assert.Null(fleet.Destination);
+        Assert.Equal(4, g.IO.OutputLines.Count(line => line.Contains("TF 1 has 0 ships")));
+        Assert.Contains(g.IO.OutputLines, line => line.Contains("a=1, z=26"));
+        Assert.Contains(g.IO.OutputLines, line => line.Contains("A=0, Z=25"));
+        Assert.Contains(g.IO.OutputLines, line => line.Contains("Letters are case-insensitive"));
+        Assert.Equal(0, fleet.Destination);
+    }
+
+    [Theory]
+    [InlineData("a", "a", "b", 1, 0, 1)]
+    [InlineData("A", "A", "B", 1, 0, 1)]
+    [InlineData("z", "z", "a", 26, 25, 0)]
+    [InlineData("Z", "Z", "A", 26, 25, 0)]
+    [InlineData("1", "0", "25", 1, 0, 25)]
+    [InlineData("26", "25", "0", 26, 25, 0)]
+    [InlineData("a", "0", "Z", 1, 0, 25)]
+    public void Identifiers_WorkForPlacementMovementAndInspection(
+        string fleetId, string startId, string targetId, int slot, int start, int target) {
+        foreach (string command in new[] { "move", "course" }) {
+            var g = TestGame.New();
+            g.Game.GenerateStars();
+            g.RunCommands($"place {startId} {fleetId} 4", $"{command} {fleetId} {targetId}", "tf list", "tf map");
+            var fleet = g.State.Players[1].Tf[slot];
+            Assert.Equal((g.State.Stars[start].X, g.State.Stars[start].Y), (fleet.X, fleet.Y));
+            Assert.Equal(4, fleet.Scouts);
+            Assert.Equal(target, fleet.Destination);
+            Assert.Contains(g.IO.OutputLines, line => line.StartsWith($"TF {slot}:") && line.Contains($"travelling -> star {target}"));
+            Assert.Contains(g.IO.OutputLines, line => line.Contains("Letters and numbers are interchangeable"));
+        }
+    }
+
+    [Theory]
+    [InlineData("0")]
+    [InlineData("27")]
+    [InlineData("-1")]
+    [InlineData("2147483648")]
+    [InlineData("aa")]
+    [InlineData("a1")]
+    [InlineData("1.0")]
+    [InlineData("@")]
+    [InlineData("[")]
+    [InlineData("é")]
+    public void InvalidFleetIdentifiers_AreRejectedWithoutMutation(string identifier) {
+        var g = SmallGame();
+        g.RunCommands($"place A {identifier}", $"move {identifier} B", $"course {identifier} B", "help");
+        Assert.Equal(3, g.IO.OutputLines.Count(line => line.Contains("Invalid task-force identifier")));
+        Assert.All(g.State.Players[1].Tf.Skip(1), fleet => {
+            Assert.Equal(0, fleet.Scouts);
+            Assert.Null(fleet.Destination);
+        });
+        Assert.Contains(g.IO.OutputLines, line => line.Contains("Commands:"));
+    }
+
+    [Theory]
+    [InlineData("-1")]
+    [InlineData("26")]
+    [InlineData("2147483648")]
+    [InlineData("AA")]
+    [InlineData("A1")]
+    [InlineData("1.0")]
+    [InlineData("@")]
+    [InlineData("[")]
+    [InlineData("é")]
+    [InlineData("D")]
+    [InlineData("3")]
+    public void InvalidOrUnavailableStars_AreRejectedWithoutMutation(string identifier) {
+        var g = SmallGame();
+        var fleet = g.State.FleetsSys.Place(1, 1, 0, scouts: 4);
+        g.RunCommands($"place {identifier} a", $"move a {identifier}", $"course a {identifier}", "help");
+        Assert.Equal(3, g.IO.OutputLines.Count(line => line.Contains("Invalid star identifier") || line.Contains("not available in the current galaxy")));
+        Assert.Equal((0, 0, 4), (fleet.X, fleet.Y, fleet.Scouts));
+        Assert.Equal(0, fleet.Destination);
+        Assert.Equal(0, fleet.ETA);
+        Assert.Contains(g.IO.OutputLines, line => line.Contains("Commands:"));
     }
 }

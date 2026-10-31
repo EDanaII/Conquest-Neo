@@ -88,6 +88,8 @@ public partial class Game {
         fleet.ETA = fleet.EtaOriginal = 0;
         fleet.X = star.X;
         fleet.Y = star.Y;
+        fleet.DepartureX = star.X;
+        fleet.DepartureY = star.Y;
         star.ExploredBy[0] = true;
         State.Board[star.X, star.Y].TaskForces[0] = fleet;
         State.ClassicEnemyInitializationCompleted = true;

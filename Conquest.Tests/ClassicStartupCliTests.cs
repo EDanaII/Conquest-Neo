@@ -216,7 +216,7 @@ public sealed class ClassicStartupCliTests {
         Assert.Equal(0, shell.Run());
         Assert.DoesNotContain("Start at star (", io.Output);
         Assert.Contains("Starting star: A", io.Output);
-        Assert.Contains("Combat is not implemented", io.Output);
+        Assert.Contains("resolves combat before movement", io.Output);
         Assert.Contains("before advancement", io.Output);
         Assert.True(shell.CurrentGame.State.PendingSharedStartEncounter);
         Assert.Equal(0, shell.CurrentGame.Turn);
@@ -336,6 +336,7 @@ public sealed class ClassicStartupCliTests {
         original.State.Stars[0].Y = 1;
         original.State.Stars[1].X = 2;
         original.State.Stars[1].Y = 1;
+        original.State.Stars[1].ExploredBy[1] = true; // Isolate shell reuse from exploration RNG.
         original.State.FleetsSys.Place(1, 1, 0, 9);
         AddNewGame(rng);
         Assert.Equal(0, shell.Run());

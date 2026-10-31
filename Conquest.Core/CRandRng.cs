@@ -34,8 +34,10 @@ namespace Conquest.Core {
             // LCG step: X = (aX + c) mod 2^32
             _state = unchecked(1103515245u * _state + 12345u);
 
-            // Non-negative 31-bit value
-            int value31 = (int)(_state >> 1);
+            // Put higher state bits into the bounded result's low positions. Using
+            // successive low LCG bits for x/y can make dense boards unreachable.
+            uint rotated = (_state >> 16) | (_state << 16);
+            int value31 = (int)(rotated & 0x7fff_ffffu);
             int range = maxExclusive - minInclusive;
             return minInclusive + (value31 % range);
         }

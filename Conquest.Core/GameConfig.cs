@@ -10,6 +10,7 @@ public sealed class GameConfig {
     public int MaxTurns { get; set; } = Constants.Max.Turns;
     public int StartingTransports { get; set; } = Constants.Init.Units;
     public int StartingMoney { get; set; } = Constants.Init.Money;
+    public bool SafeExplore { get; set; }
 
     public double VictoryMultiplier { get; set; } = 1.5;
     public double OverwhelmFactor { get; set; } = 8.0;

@@ -21,6 +21,15 @@ class Program {
         var game = new Game(rng, state);
         var shell = new GameShell(game, io, rng, renderer);
 
-        return shell.Run( );
+        if (args.Contains("--debug-shell")) return shell.Run();
+        if (config.NumStars is < 1 or > 26) {
+            io.WriteLine("Classic mode requires 1-26 stars.");
+            return 1;
+        }
+        game.GenerateStars();
+        game.InitializeClassicPlayers();
+        game.InitializeClassicEnemy();
+        if (!new ClassicStartupFlow(io).Run(game)) return 0;
+        return new ClassicGameLoop(game, new ClassicConsoleTerminal()).Run();
     }
 }

@@ -41,7 +41,7 @@ internal sealed class ClassicStartupFlow {
         _io.WriteLine($"Classic startup complete at star {game.State.Stars[game.State.PlayerStartingStar.Value].Name}.");
         WriteStatus(game);
         if (game.State.PendingSharedStartEncounter)
-            _io.WriteLine("Shared-start encounter pending. Combat is not implemented; turn advancement is blocked.");
+            _io.WriteLine("Shared-start encounter pending. Classic gameplay resolves combat before movement.");
         return true;
     }
 

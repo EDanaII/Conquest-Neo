@@ -90,6 +90,8 @@ public partial class Game {
         fleet.Destination = index;
         fleet.X = star.X;
         fleet.Y = star.Y;
+        fleet.DepartureX = star.X;
+        fleet.DepartureY = star.Y;
         fleet.ETA = fleet.EtaOriginal = 0;
         State.Board[star.X, star.Y].TaskForces[1] = fleet;
         State.PlayerStartingStar = index;

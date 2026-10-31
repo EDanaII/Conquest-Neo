@@ -35,7 +35,7 @@ public sealed class FleetBasicsTests {
         var rc = g.RunCommands($"{command} {slot} 0", "map");
 
         Assert.Equal(0, rc);
-        Assert.Contains(g.IO.OutputLines, line => line.Contains($"Illegal fleet slot {slot}."));
+        Assert.Contains(g.IO.OutputLines, line => line.Contains($"Invalid task-force identifier '{slot}'."));
         Assert.Equal(fleetsBefore, System.Text.Json.JsonSerializer.Serialize(g.State.Players));
         Assert.Equal(turnBefore, g.Game.Turn);
         Assert.Equal(1, g.Renderer.CallCount);
@@ -58,8 +58,8 @@ public sealed class FleetBasicsTests {
 
         Assert.Equal(0, rc);
         Assert.Equal(1, tf.Destination);
-        Assert.Equal(7, tf.ETA);
-        Assert.Equal(7, tf.EtaOriginal);
+        Assert.Equal(5, tf.ETA);
+        Assert.Equal(5, tf.EtaOriginal);
         Assert.Equal((2, 3), (tf.X, tf.Y));
         Assert.Equal(3, tf.Scouts);
         Assert.Equal(0, g.Game.Turn);
@@ -97,7 +97,7 @@ public sealed class FleetBasicsTests {
         Assert.Equal(star.X, tf.X);
         Assert.Equal(star.Y, tf.Y);
         Assert.True(tf.Scouts > 0);
-        Assert.True(tf.Destination is null);
+        Assert.Equal(1, tf.Destination);
     }
 
     [Fact]
@@ -108,16 +108,17 @@ public sealed class FleetBasicsTests {
         var tf = state.Players[1].Tf[1];
         var s1 = state.Stars[1];
         var s2 = state.Stars[2];
-        var manhattan = Math.Abs(s1.X - s2.X) + Math.Abs(s1.Y - s2.Y);
+        var distance = (int)(Math.Sqrt(Math.Pow(s1.X - s2.X, 2) + Math.Pow(s1.Y - s2.Y, 2)) - 0.049 + 1);
+        s2.ExploredBy[1] = true; // This test isolates movement from exploration losses.
 
         Assert.True(tf.ETA > 0);
-        Assert.Equal(manhattan, tf.EtaOriginal);
+        Assert.Equal(distance, tf.EtaOriginal);
 
-        game.Tick(manhattan);
+        game.Tick(distance);
 
         Assert.Equal((s2.X, s2.Y), (tf.X, tf.Y));
         Assert.Equal(0, tf.ETA);
-        Assert.True(tf.Destination is null);
+        Assert.Equal(2, tf.Destination);
     }
 
     [Fact]

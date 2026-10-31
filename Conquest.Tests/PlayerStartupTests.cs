@@ -386,7 +386,7 @@ public sealed class PlayerStartupTests {
         var (game, rng) = PreparedGame(money: 0);
         if (when != "before begin") game.BeginClassicPlayerStartup();
         if (when is "before purchase" or "before finalization") game.SelectClassicPlayerStartingStar(1);
-        if (when == "before selection") game.State.FleetsSys.SetCourse(1, 26, 1);
+        if (when == "before selection") game.State.FleetsSys.Place(1, 26, 1);
         else game.State.FleetsSys.Place(1, 1, 2);
         Action operation = when switch {
             "before begin" => game.BeginClassicPlayerStartup,

@@ -15,7 +15,7 @@ Faithfully reproduce original C behavior and gameplay in C# with a CLI. `Origina
 ### 2. Stabilize the existing CLI first
 
 - Address invalid-command crashes, EOF handling, zero-coordinate/index defects, and disconnected visibility/rendering.
-- Investigate possible nonterminating generation on small/dense boards.
+- Dense-board generation hang reproduced and corrected during the [completion audit](ClassicV1CompletionAudit.md); seeded RNG output mapping changes, preserving deterministic replay and original sampling rules.
 - Correct occupancy and snapshot restoration with explicit decisions on supported semantics.
 - Add regression cases for real rendering, malformed commands, zero axes, overlaps, restored games, and generation boundaries.
 
@@ -25,7 +25,19 @@ See [DevelopmentBacklog.md](DevelopmentBacklog.md) for evidence and priorities. 
 
 Discuss significant decisions before implementation: authoritative state/indexing, occupancy, visibility, shell/engine boundaries, generator consolidation, and save scope. Keep changes reversible and game rules independent of presentation.
 
-Existing: board/stars/RNG, partial visibility, fleet placement/course/tick operations, and limited snapshots. Original movement and exploration behavior remain incomplete.
+Existing: board/stars/RNG, partial visibility, Classic player course/range/velocity/interpolation and exploration operations, and limited snapshots. See [Classic movement](ClassicMovement.md) for implemented rules and remaining boundaries.
+
+### Current milestone: Classic release-candidate validation
+
+The [RC validation report](ClassicV1ReleaseCandidate.md) records the full repository review, 775 passing Release tests, normal Release build, paired executable victory/defeat/turn-limit games, terminal review and human-playtest checklist. Only completed Classic implementation/tests/documentation are included. The user authorizes committing and pushing the reviewed Classic work if checks pass; no v1.0 tag or completion declaration is authorized. Physical-console and varied human-play acceptance remain before a final release decision. No gameplay changes or refactoring are part of RC preparation.
+
+### Previous milestone: Classic gameplay completion audit
+
+The [v1.0 completion audit](ClassicV1CompletionAudit.md) reviews all implemented systems, fixes a confirmed dense-board generation hang, and adds paired ordinary seeded games through legitimate endings plus capture-to-victory and generation regressions. Its recommendation was release-candidate validation, not a declaration of v1.0 completion. The audit itself authorized no commit, push or tag; the current RC instructions above supersede that version-control restriction. Save/load, color enhancements, expanded galaxies and improved AI are explicitly deferred modernization; exact C/C# RNG sequence identity is not required. Correct rules, probabilities, state transitions and deterministic C# replay remain required.
+
+### Previous milestone: Classic strategic audit and turn completion
+
+All 13 original enemy routines have Core equivalents; the [strategic cross-check and guard review](ClassicEnemyAI.md) found no missing scoring, deployment, colonization or purchasing branch to replace. The bounded implementation closes original turn completion: after enemy orders, movement, combat, all growth/spending and investment combat, annual update is followed by elimination/overwhelm/time-limit checks and the original final score/winner screen. Confirmed Q scores immediately without a turn. Tests cover original integer ratios, IU-vs-population scoring, terminal behavior, 60-turn development and generated conflict playthroughs through actual outcomes. The approved wander correction is retained and other undefined AI states still stop explicitly. See [endgame audit](ClassicEndgame.md). The completion audit above supersedes its acceptance/deferment status; no modern strategy is added.
 
 ### 4. Restore original gameplay systems
 
@@ -37,12 +49,12 @@ Proposed dependency order, to refine through C-source investigation:
 4. Fleet/planet combat, bombardment, withdrawal, conquest/revolt, and enemy decisions.
 5. Full turn orchestration, termination, scoring, and victory/defeat.
 
-Trace rules to original source and test them. Distinguish original behavior, conversion defects, and enhancements. Current Manhattan travel and manually placed free scouts are scaffold behavior, not accepted Classic rules.
+Trace rules to original source and test them. Distinguish original behavior, conversion defects, and enhancements. Startup, movement/exploration, J/N, L, both owners' growth/investment/research, B/P?/B? combat and withdrawal, enemy expansion/orders, revolt and normal endgame/scoring are implemented within documented source-safe boundaries. Complete original acceptance still requires the remaining comparisons and defect decisions above. Debug Tick intentionally remains movement-only; manually placed free scouts remain a debug operation.
 
 ### 5. Classic acceptance
 
 - Exercise initialization, exploration, colonies, economy, research, combat, AI, and termination in representative end-to-end scenarios.
-- Validate documented original rules and boundary cases; resolve required RNG/output fidelity and legacy-defect policy before declaring completion.
+- Validate documented original rules and boundary cases; review the completion audit's presentation adaptations and guarded legacy-defect policy before declaring completion. Exact platform RNG stream identity is not required.
 - Verify .NET 8 build/tests and keep documentation aligned with implemented commands and limitations.
 
 Existing scripted I/O supports scenario testing. Density/spacing bands and 20–50-turn economy scenarios may supplement rule tests where justified by the C source; subjective feel is not a substitute for fidelity. Reference transcripts remain useful; exact transcript testing requirements are unresolved.

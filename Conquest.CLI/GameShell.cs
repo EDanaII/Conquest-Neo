@@ -132,8 +132,8 @@ public sealed class GameShell {
     private void Course(string[] parts) {
         // usage: move <tfIndex> <starId>
         if (parts.Length < 3) { _io.WriteLine("usage: move <tfIndex> <starId>"); return; }
-        if (!int.TryParse(parts[1], out var tfIndex)) { _io.WriteLine("tfIndex must be int"); return; }
-        if (!int.TryParse(parts[2], out var starId)) { _io.WriteLine("starId must be int"); return; }
+        if (!TryTaskForce(parts[1], out var tfIndex)) return;
+        if (!TryStar(parts[2], out var starId)) return;
 
         var fleets = _game.State.Players[1].Tf;
         if (tfIndex < 1 || tfIndex >= fleets.Length) {
@@ -152,7 +152,8 @@ public sealed class GameShell {
         }
 
         _game.State.FleetsSys.SetCourse(team: 1, tfIndex: tfIndex, starIndex: starId);
-        _io.WriteLine($"TF {tfIndex} course set to star {starId}. ETA {tf.ETA}.");
+        _io.WriteLine(tf.ETA == 0 ? $"TF {tfIndex} remains at star {starId}."
+            : $"TF {tfIndex} course set to star {starId}. ETA {tf.ETA}.");
     }
 
     private void Discover(string[] parts) {
@@ -174,7 +175,31 @@ public sealed class GameShell {
 
     private void Help( ) {
         _io.WriteLine("Commands: newgame | quit (q) | seed N | genstars | map (m) | fog [on|off] | reveal [on|off|all] | discover x y [r] | stars | place <starId> [tfIndex] [ships] | move <tfIndex> <starId> | tick [n] | tf [map|list]");
-        _io.WriteLine("Fleet IDs are numeric 1-26 (original C fleets a-z, entered as A-Z); star IDs are zero-based (0=A). Example: move 1 2 sends fleet a to star C.");
+        _io.WriteLine("Task-force letters a-z and numbers 1-26 are interchangeable (a=1, z=26); star letters A-Z and zero-based indices 0-25 are interchangeable (A=0, Z=25). Letters are case-insensitive. Example: move a C equals move 1 2; course is an alias for move.");
+    }
+
+    private bool TryTaskForce(string text, out int index) {
+        if (TryIdentifier(text, 1, out index)) return true;
+        _io.WriteLine($"Invalid task-force identifier '{text}'. Use a-z (case-insensitive) or 1-26.");
+        return false;
+    }
+
+    private bool TryStar(string text, out int index) {
+        if (!TryIdentifier(text, 0, out index)) {
+            _io.WriteLine($"Invalid star identifier '{text}'. Use A-Z (case-insensitive) or 0-25.");
+            return false;
+        }
+        if (index < _game.State.Stars.Count) return true;
+        _io.WriteLine($"Star {index} is not available in the current galaxy ({_game.State.Stars.Count} stars). Use 'stars' to list available indices.");
+        return false;
+    }
+
+    private static bool TryIdentifier(string text, int firstIndex, out int index) {
+        if (text.Length == 1 && char.ToUpperInvariant(text[0]) is >= 'A' and <= 'Z') {
+            index = char.ToUpperInvariant(text[0]) - 'A' + firstIndex;
+            return true;
+        }
+        return int.TryParse(text, out index) && index >= firstIndex && index < firstIndex + 26;
     }
 
     private void Place(string[] parts) {
@@ -183,12 +208,10 @@ public sealed class GameShell {
             return;
         }
 
-        if (!int.TryParse(parts[1], out var starId)) {
-            _io.WriteLine("starId must be int");
-            return;
-        }
+        if (!TryStar(parts[1], out var starId)) return;
 
-        var tfIndex = (parts.Length > 2 && int.TryParse(parts[2], out var tf)) ? tf : 1;
+        var tfIndex = 1;
+        if (parts.Length > 2 && !TryTaskForce(parts[2], out tfIndex)) return;
         var ships = (parts.Length > 3 && int.TryParse(parts[3], out var sh)) ? sh : 3;
 
         _game.State.FleetsSys.Place(team: 1, tfIndex: tfIndex, starIndex: starId, scouts: ships);
@@ -260,13 +283,14 @@ public sealed class GameShell {
     }
 
     private void TfList( ) {
-        _io.WriteLine("Player fleets: numeric IDs 1-26 correspond to original C a-z; star IDs are zero-based (0=A).");
+        _io.WriteLine("Player fleets: a-z = 1-26; stars: A-Z = 0-25. Letters and numbers are interchangeable identifiers; letters are case-insensitive.");
         var p = _game.State.Players[1];
         for (int i = 1; i < p.Tf.Length; i++) {
             var tf = p.Tf[i];
             if (tf == null || !HasPlacedTaskForce(1, tf)) continue;
 
-            var atText = _game.FindStarAt(tf.X, tf.Y) is int sid ? $" @ star {sid} ({_game.State.Stars[sid].Name})" : "";
+            var atText = tf.ETA == 0 && tf.Destination is int sid && (uint)sid < (uint)_game.State.Stars.Count
+                ? $" @ star {sid} ({_game.State.Stars[sid].Name})" : "";
             var orderText = tf.ETA > 0 && tf.Destination is int d && (uint)d < (uint)_game.State.Stars.Count
                 ? $" travelling -> star {d} ({_game.State.Stars[d].Name}) (ETA {tf.ETA})"
                 : " stationary";
@@ -281,15 +305,26 @@ public sealed class GameShell {
         var state = _game.State;
         if ((uint)tf.X >= (uint)state.Board.GetLength(0) || (uint)tf.Y >= (uint)state.Board.GetLength(1))
             return false;
-        // Classic dest retains the current star at ETA zero; debug placement and
-        // scaffold arrival instead retain the team's sector reference with dest null.
+        // Destination retains the current star at ETA zero, including debug
+        // placement and arrivals. Keep sector evidence for older debug state.
         return (tf.Destination is int star && (uint)star < (uint)state.Stars.Count)
             || ReferenceEquals(state.Board[tf.X, tf.Y].TaskForces[team], tf);
     }
 
     private void Tick(string[] parts) {
         var n = (parts.Length > 1 && int.TryParse(parts[1], out var nn)) ? nn : 1;
+        n = Math.Max(1, n);
+        var travelling = _game.State.Players[1].Tf.Skip(1).Select((tf, index) =>
+            (Fleet: tf, Slot: index + 1, Destination: tf.Destination, Eta: tf.ETA,
+                Ships: (long)tf.Transports + tf.Scouts + tf.Cruisers + tf.BattleStars))
+            .Where(item => item.Eta > 0).ToArray();
         var t = _game.Tick(n);
+        foreach (var item in travelling.Where(item => item.Fleet.ETA == 0)) {
+            long ships = (long)item.Fleet.Transports + item.Fleet.Scouts + item.Fleet.Cruisers + item.Fleet.BattleStars;
+            _io.WriteLine(item.Fleet.Destination == null
+                ? $"TF {item.Slot} destroyed exploring star {item.Destination}."
+                : $"TF {item.Slot} arrived at star {item.Destination}. Exploration losses: {item.Ships - ships} ships.");
+        }
         _io.WriteLine($"Advanced {n} tick(s). Turn={t}");
     }
     

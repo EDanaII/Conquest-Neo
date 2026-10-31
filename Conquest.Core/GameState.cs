@@ -13,8 +13,33 @@ public partial class GameState {
     public int? PlayerStartingStar { get; internal set; }
     public int PlayerStartupBalance { get; internal set; }
     public bool PendingSharedStartEncounter { get; internal set; }
+    public int CompletedTurns { get; internal set; }
+    public ClassicGameResult? Result { get; internal set; }
+    public int ProductionYear { get; internal set; } = 1;
+    public bool ClassicTurnInProgress { get; internal set; }
+    public ColonyInvestment? Investment { get; internal set; }
+    internal bool InvestmentCycleDue { get; set; }
+    internal bool EconomyPrepared { get; set; }
+    internal Queue<(int StarIndex, Planet Planet)>? ProductionQueue { get; set; }
+    public PlanetaryAttack? Attack { get; internal set; }
+    internal bool CombatPrepared { get; set; }
+    internal bool PostInvestmentCombatPrepared { get; set; }
+    public FleetBattle? Battle { get; internal set; }
+    public EnemyPlanetAttack? EnemyAttack { get; internal set; }
+    internal int CombatStar { get; set; }
+    internal int CombatStep { get; set; }
+    internal bool StartupCombatInProgress { get; set; }
+    internal string? EnemyProcessingFailure { get; set; }
+    internal HashSet<int> EnemyArrivals { get; } = [];
+    internal HashSet<int> EnemyDepartures { get; } = [];
+    public IEnumerable<int> VisibleEnemyArrivals => EnemyArrivals.Order();
+    public IEnumerable<int> VisibleEnemyDepartures => EnemyDepartures.Order();
 
     internal void EnsureStartupAllowsAdvancement() {
+        if (Result != null) throw new InvalidOperationException("The Classic game is over.");
+        if (EnemyProcessingFailure != null) throw new InvalidOperationException(EnemyProcessingFailure);
+        if (ClassicTurnInProgress)
+            throw new InvalidOperationException("Complete the pending Classic turn/investment before advancing movement.");
         if (PendingSharedStartEncounter
             || PlayerStartupStage is not (Model.PlayerStartupStage.NotStarted or Model.PlayerStartupStage.Completed))
             throw new InvalidOperationException("Player startup must finish and any shared-start encounter must be resolved before advancement.");

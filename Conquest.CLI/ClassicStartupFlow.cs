@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Text;
 using Conquest.Core;
 using Conquest.Core.Model;
 
@@ -7,11 +6,12 @@ namespace Conquest.CLI;
 
 internal sealed class ClassicStartupFlow {
     private readonly IGameIO _io;
-    internal ClassicStartupFlow(IGameIO io) { _io = io; }
+    private readonly IClassicTerminal? _terminal;
+    internal ClassicStartupFlow(IGameIO io, IClassicTerminal? terminal = null) { _io = io; _terminal = terminal; }
 
     internal bool Run(Game game) {
         _io.WriteLine("Classic startup");
-        WriteSelectionMap(game.State);
+        WriteSelectionMap(game);
         game.BeginClassicPlayerStartup();
         while (game.State.PlayerStartupStage == PlayerStartupStage.SelectingStar) {
             _io.WriteLine("Start at star (letter; quit exits):");
@@ -25,20 +25,26 @@ internal sealed class ClassicStartupFlow {
             }
             game.SelectClassicPlayerStartingStar(index);
         }
-        _io.WriteLine($"Starting star: {game.State.Stars[game.State.PlayerStartingStar!.Value].Name}");
-        WritePurchaseHelp();
-        WriteStatus(game);
-        while (game.State.PlayerStartupBalance > 0) {
-            _io.WriteLine("Purchases:");
-            var line = _io.ReadLine();
-            if (line == null || IsQuit(line)) return false;
-            if (line.Trim().Equals("help", StringComparison.OrdinalIgnoreCase) || line.Trim().Equals("H", StringComparison.OrdinalIgnoreCase))
-                WritePurchaseHelp();
-            else ApplyPurchases(game, line);
+        if (_terminal != null) {
+            if (!new ClassicStartupPurchases(game, _terminal).Run()) return false;
+        }
+        else {
+            _io.WriteLine($"Starting star: {game.State.Stars[game.State.PlayerStartingStar!.Value].Name}");
+            WritePurchaseHelp();
             WriteStatus(game);
+            while (game.State.PlayerStartupBalance > 0) {
+                _io.WriteLine("Purchases:");
+                var line = _io.ReadLine();
+                if (line == null || IsQuit(line)) return false;
+                if (line.Trim().Equals("help", StringComparison.OrdinalIgnoreCase) || line.Trim().Equals("H", StringComparison.OrdinalIgnoreCase))
+                    WritePurchaseHelp();
+                else ApplyPurchases(game, line);
+                WriteStatus(game);
+            }
         }
         game.FinalizeClassicPlayerStartup();
-        _io.WriteLine($"Classic startup complete at star {game.State.Stars[game.State.PlayerStartingStar.Value].Name}.");
+        if (_terminal != null) return true;
+        _io.WriteLine($"Classic startup complete at star {game.State.Stars[game.State.PlayerStartingStar!.Value].Name}.");
         WriteStatus(game);
         if (game.State.PendingSharedStartEncounter)
             _io.WriteLine("Shared-start encounter pending. Classic gameplay resolves combat before movement.");
@@ -103,14 +109,11 @@ internal sealed class ClassicStartupFlow {
     }
 
     // Selection exposes only public star letters/coordinates, never fleet or planet data.
-    private void WriteSelectionMap(GameState state) {
-        _io.WriteLine("Starting-star map (zero-based coordinates):");
-        _io.WriteLine("   " + string.Concat(Enumerable.Range(0, state.Config.Width).Select(x => $"{x,3}")));
-        for (int y = state.Config.Height - 1; y >= 0; y--) {
-            var row = new StringBuilder($"{y,2} ");
-            for (int x = 0; x < state.Config.Width; x++)
-                row.Append($"{state.Board[x, y].StarRef?.Name ?? ".",3}");
-            _io.WriteLine(row.ToString());
-        }
+    private void WriteSelectionMap(Game game) {
+        _io.WriteLine("Starting-star map (Classic coordinates):");
+        // Only write the map and axes: unused pane rows would scroll the map
+        // out of a 25-row console before the existing line-based choice prompt.
+        foreach (var row in new ClassicScreen().Render(game).Take(17))
+            _io.WriteLine(row);
     }
 }

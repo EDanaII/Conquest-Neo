@@ -1,19 +1,16 @@
 ﻿using Conquest.Core;
 using Conquest.Core.Model;
-using Conquest.Core.Random;
+using System.Security.Cryptography;
 
 namespace Conquest.CLI;
 
 class Program {
     static int Main(string[] args) {
         var io = new ConsoleIO( );
-        var rng = new CRandRng( ); // parity RNG in Core.Random
-
         var config = GameConfig.FromArgs(args);
-        // Accept int OR uint, depending on how GameConfig.Seed is defined
-        if (config.Seed is int si) {
-            rng.Seed(si); // C-parity path (used by StarGenerator)
-        }
+        // Keep Core's deterministic generator, but choose a fresh launch seed
+        // unless the player explicitly requests a reproducible sequence.
+        var rng = new CRandRng(config.Seed ?? RandomNumberGenerator.GetInt32(1, int.MaxValue));
 
         var state = new GameState(config);
         var renderer = new MapRenderer( ); // CLI implementation of IMapRenderer
@@ -29,7 +26,8 @@ class Program {
         game.GenerateStars();
         game.InitializeClassicPlayers();
         game.InitializeClassicEnemy();
-        if (!new ClassicStartupFlow(io).Run(game)) return 0;
-        return new ClassicGameLoop(game, new ClassicConsoleTerminal()).Run();
+        var terminal = new ClassicConsoleTerminal();
+        if (!new ClassicStartupFlow(io, terminal).Run(game)) return 0;
+        return new ClassicGameLoop(game, terminal).Run();
     }
 }

@@ -28,7 +28,7 @@ Supported keys: B, D, G/space, H, M, Q, S, T, R, C, J, N and L. Orders call Core
 
 ## Remaining differences
 
-- Startup still uses existing line-based purchases and a zero-based selection map, without the welcome pause or original in-screen initialization prompts. Restoring startup presentation is the next interface increment.
+- Starting-star selection remains line-based, without the original welcome pause. It renders the existing galaxy through `ClassicScreen`, with the same one-based axes, orientation and symbols as gameplay. Default startup purchasing now uses `ClassicStartupPurchases` and the same `ClassicConsoleTerminal` instance as gameplay: initialization/balance/fleet text at the original lower-left rows, Events/Research alongside, and changed-row output rather than scrolling text. The original editable 25-character purchase lines, H and separate >M/>R subprompts are implemented. The debug shell retains its existing line-based startup facility. No galaxy is regenerated between phases; finalization reveals the chosen star and places its map fleet glyph, as C does after buying.
 - Rendering remains monochrome; original pen colors remain unimplemented. Prompt cursor placement now follows typed input.
 - Star summaries include original visibility-dependent planet/colony/enemy fields. T uses the original single-row inventory layout. C reports paginate. Research shows next-level requirements from Core. Reports use a 17-row pane instead of reproducing C's lower-pane overlap and inconsistent pagination.
 - D now reproduces cancellation timing and distance/ETA/status text; debug-shell invalid-identifier handling remains unchanged.

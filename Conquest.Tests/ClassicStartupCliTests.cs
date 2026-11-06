@@ -7,6 +7,12 @@ using Conquest.Tests.TestHelpers;
 namespace Conquest.Tests;
 
 public sealed class ClassicStartupCliTests {
+    private sealed class FirstScreenTerminal : IClassicTerminal {
+        public string[]? Screen { get; private set; }
+        public int ReadKey() => -1;
+        public void Present(string[] screen) => Screen = screen;
+    }
+
     private sealed class ScriptedIO : IGameIO {
         private readonly Queue<string> _lines;
         private readonly StringBuilder _output = new();
@@ -193,11 +199,10 @@ public sealed class ClassicStartupCliTests {
             int start = output.IndexOf("Starting-star map", StringComparison.Ordinal);
             int end = output.IndexOf("Start at star (", start, StringComparison.Ordinal);
             string map = output[start..end];
-            Assert.Contains(" 0   A", map);
-            Assert.Contains("  B", map);
-            Assert.Contains("  C", map);
+            Assert.Contains("?A ", map);
+            Assert.Contains("?B ", map);
+            Assert.Contains("?C ", map);
             Assert.DoesNotContain("enemy", map, StringComparison.OrdinalIgnoreCase);
-            Assert.DoesNotContain("?", map);
             if (firstMap != null) Assert.Equal(firstMap, map);
             firstMap = map;
             Assert.True(shell.CurrentGame.State.FogEnabled);
@@ -205,6 +210,51 @@ public sealed class ClassicStartupCliTests {
             Assert.False(shell.CurrentGame.State.RevealStars);
             for (int i = 0; i < 3; i++) Assert.Equal(i == 1, shell.CurrentGame.State.Stars[i].ExploredBy[1]);
         }
+    }
+
+    [Theory]
+    [InlineData("B", 0)]
+    [InlineData("B", 30)]
+    [InlineData("C", 0)]
+    [InlineData("C", 30)]
+    public void SelectionAndGameplayUseSameClassicMapAndRetainGeneratedGalaxy(string choice, int money) {
+        var input = money == 0 ? new[] { "newgame", "invalid", choice, "quit" }
+            : new[] { "newgame", "invalid", choice, "5S", "quit" };
+        var (shell, _, rng, io, _) = NewShell(input, money: money);
+        AddNewGame(rng);
+        Assert.Equal(0, shell.Run());
+        var game = shell.CurrentGame;
+        var stars = game.State.Stars.ToArray();
+        var coordinates = stars.Select(s => (s.Name, s.X, s.Y)).ToArray();
+        Assert.Equal(new[] { ("A", 0, 0), ("B", 7, 0), ("C", 14, 14) }, coordinates);
+        var selection = io.Output.Split(Environment.NewLine)
+            .SkipWhile(line => !line.StartsWith("Starting-star map"))
+            .Skip(1).Take(17).ToArray();
+        Assert.All(selection, row => Assert.Equal(79, row.Length));
+
+        var terminal = new FirstScreenTerminal();
+        Assert.Equal(0, new ClassicGameLoop(game, terminal).Run());
+        var gameplay = Assert.IsType<string[]>(terminal.Screen);
+        for (int row = 0; row < 17; row++) {
+            for (int column = 0; column < 49; column++) {
+                bool selectedStatusOrFleet = stars.Any(s => s.Name == choice && row == 14 - s.Y
+                    && (column == 3 + s.X * 3 || column == 5 + s.X * 3));
+                if (!selectedStatusOrFleet) Assert.Equal(selection[row][column], gameplay[row][column]);
+            }
+        }
+        Assert.Equal(" 1", selection[16].Substring(3, 2));
+        for (int index = 0; index < stars.Length; index++) {
+            var star = stars[index]; int row = 14 - star.Y, column = 3 + star.X * 3;
+            Assert.Equal($"?{star.Name} ", selection[row].Substring(column, 3));
+            Assert.Equal(star.Name == choice ? $" {star.Name}a" : $"?{star.Name} ", gameplay[row].Substring(column, 3));
+            Assert.Same(star, game.State.Stars[index]); Assert.Same(star, game.State.Board[star.X, star.Y].StarRef);
+        }
+        Assert.Equal(coordinates, game.State.Stars.Select(s => (s.Name, s.X, s.Y)).ToArray());
+        var fleet = game.State.Players[1].Tf[1]; var selected = stars.Single(s => s.Name == choice);
+        Assert.Equal((selected.X, selected.Y), (fleet.X, fleet.Y));
+        Assert.Equal(Array.IndexOf(stars, selected), fleet.Destination);
+        Assert.Equal(35, fleet.Transports); Assert.Equal(money == 0 ? 0 : 5, fleet.Scouts);
+        Assert.Equal(0, game.Turn); rng.AssertExhausted();
     }
 
     [Fact]
